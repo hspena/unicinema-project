@@ -1,0 +1,67 @@
+import React, { ReactElement } from 'react';
+
+// Admin
+import {
+  AdminDashboard,
+  UserManagement,
+  RoomManagement,
+  MovieManagement,
+  SnacksManagement,
+  Analytics,
+} from './pages/Admin';
+
+// Manager (Cinema Room)
+import {
+  ManagerDashboard,
+  CinemaManagement,
+  StaffManagement,
+  TicketManagement,
+  ManagerAnalytics,
+} from './pages/Manager';
+
+// Staff
+import StaffPage from './pages/Staff';
+
+// Moviegoer
+import { Browse, Schedule, MyTickets } from './pages/Moviegoer';
+
+// Shared
+import Settings  from './pages/Settings';
+import NotFound  from './pages/NotFound';
+
+// ─── Route map ────────────────────────────────────────────────────────────────
+// Keys must match the `view` strings in NAV_CONFIG (helpers.ts).
+const ROUTE_MAP: Record<string, ReactElement> = {
+  // Admin
+  dashboard:    <AdminDashboard />,
+  users:        <UserManagement />,
+  rooms:        <RoomManagement />,
+  movies:       <MovieManagement />,
+  snacks:       <SnacksManagement />,
+  analytics:    <Analytics />,
+
+  // Manager
+  'cm-dashboard':  <ManagerDashboard />,
+  cinema:          <CinemaManagement />,
+  staff:           <StaffManagement />,
+  tickets:         <TicketManagement />,
+  'cm-analytics':  <ManagerAnalytics />,
+
+  // Staff
+  'staff-main': <StaffPage />,
+
+  // Moviegoer
+  browse:       <Browse />,
+  schedule:     <Schedule />,
+  'my-tickets': <MyTickets />,
+
+  // Shared
+  settings:     <Settings />,
+};
+
+/**
+ * Resolve a view key to its corresponding page element.
+ * Falls back to <NotFound /> for unknown views.
+ */
+export const resolveView = (view: string): ReactElement =>
+  ROUTE_MAP[view] ?? <NotFound />;
