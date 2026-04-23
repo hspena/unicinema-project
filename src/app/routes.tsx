@@ -20,7 +20,7 @@ import {
 } from './pages/Manager';
 
 // Staff
-import StaffPage from './pages/Staff';
+import StaffIndex from './pages/Staff/StaffIndex';
 
 // Moviegoer
 import { Browse, Schedule, MyTickets } from './pages/Moviegoer';
@@ -48,7 +48,7 @@ const ROUTE_MAP: Record<string, ReactElement> = {
   'cm-analytics':  <ManagerAnalytics />,
 
   // Staff
-  'staff-main': <StaffPage />,
+  'staff-main': <StaffIndex />,
 
   // Moviegoer
   browse:       <Browse />,
