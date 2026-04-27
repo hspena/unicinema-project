@@ -3,27 +3,69 @@ import {
 } from 'firebase/database';
 import { db } from '../config/firebase';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type ScheduleStatus = 'upcoming' | 'running' | 'completed' | 'cancelled';
 
 export interface Schedule {
-  id:        string;
-  roomId:    string;
-  movieId:   string;
-  date:      string;        // YYYY-MM-DD
-  startTime: string;        // HH:MM
-  endTime:   string;        // HH:MM — computed from movie duration
-  status:    ScheduleStatus;
-  createdBy: string;
-  createdAt: string;
+  id:          string;
+  roomId:      string;
+  movieId:     string;
+  date:        string;
+  startTime:   string;
+  endTime:     string;
+  freeTickets: boolean;   // ← new: if true, booking is free
+  status:      ScheduleStatus;
+  createdBy:   string;
+  createdAt:   string;
 }
 
 export type SchedulePayload = Omit<Schedule, 'id' | 'createdAt'>;
 
-// ─── Firebase refs ────────────────────────────────────────────────────────────
-const schedulesRef  = () => ref(db, 'schedules');
-const scheduleRef   = (id: string) => ref(db, `schedules/${id}`);
+const schedulesRef = () => ref(db, 'schedules');
+const scheduleRef  = (id: string) => ref(db, `schedules/${id}`);
+
+// ─── Clash detection ──────────────────────────────────────────────────────────
+
+/** Convert HH:MM to total minutes */
+const toMinutes = (time: string): number => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/**
+ * Check if a new schedule clashes with existing ones in the same room on the same date.
+ * Returns the clashing schedule if found, null otherwise.
+ * Pass `excludeId` when editing an existing schedule to ignore itself.
+ */
+export const findClash = async (
+  roomId:    string,
+  date:      string,
+  startTime: string,
+  endTime:   string,
+  excludeId?: string
+): Promise<Schedule | null> => {
+  const snap = await get(schedulesRef());
+  if (!snap.exists()) return null;
+
+  const all = Object.values(snap.val()) as Schedule[];
+  const same = all.filter(s =>
+    s.roomId === roomId &&
+    s.date   === date   &&
+    s.id     !== excludeId
+  );
+
+  const newStart = toMinutes(startTime);
+  const newEnd   = toMinutes(endTime);
+
+  for (const s of same) {
+    const exStart = toMinutes(s.startTime);
+    const exEnd   = toMinutes(s.endTime);
+    // Overlap if new show starts before existing ends AND new show ends after existing starts
+    if (newStart < exEnd && newEnd > exStart) {
+      return s;
+    }
+  }
+  return null;
+};
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
@@ -35,9 +77,7 @@ export const createSchedule = async (payload: SchedulePayload): Promise<Schedule
   return schedule;
 };
 
-export const updateSchedule = async (
-  id: string, payload: Partial<SchedulePayload>
-): Promise<void> => {
+export const updateSchedule = async (id: string, payload: Partial<SchedulePayload>): Promise<void> => {
   await update(scheduleRef(id), payload);
 };
 
@@ -45,7 +85,6 @@ export const deleteSchedule = async (id: string): Promise<void> => {
   await remove(scheduleRef(id));
 };
 
-/** Subscribe to schedules for a specific room */
 export const subscribeToRoomSchedules = (
   roomId: string,
   callback: (schedules: Schedule[]) => void
@@ -59,7 +98,6 @@ export const subscribeToRoomSchedules = (
   return () => off(dbRef);
 };
 
-/** Subscribe to all schedules (Admin view) */
 export const subscribeToAllSchedules = (
   callback: (schedules: Schedule[]) => void
 ): (() => void) => {
@@ -73,26 +111,22 @@ export const subscribeToAllSchedules = (
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Compute end time given start time (HH:MM) and duration in minutes */
 export const computeEndTime = (startTime: string, durationMinutes: number): string => {
-  const [h, m]   = startTime.split(':').map(Number);
-  const total    = h * 60 + m + durationMinutes;
-  const endH     = Math.floor(total / 60) % 24;
-  const endM     = total % 60;
+  const [h, m] = startTime.split(':').map(Number);
+  const total  = h * 60 + m + durationMinutes;
+  const endH   = Math.floor(total / 60) % 24;
+  const endM   = total % 60;
   return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 };
 
-/** Today's date in YYYY-MM-DD */
 export const todayString = (): string =>
   new Date().toISOString().split('T')[0];
 
-/** Format date for display */
 export const formatDate = (dateStr: string): string => {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 };
 
-/** Determine current status based on time */
 export const autoStatus = (date: string, startTime: string, endTime: string): ScheduleStatus => {
   const now   = new Date();
   const start = new Date(`${date}T${startTime}:00`);

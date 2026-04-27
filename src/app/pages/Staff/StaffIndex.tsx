@@ -1,50 +1,253 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Badge, Button } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import SeatMap from '../../components/ui/SeatMap';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
 import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Schedule, subscribeToRoomSchedules, autoStatus, todayString, formatDate } from '../../services/scheduleService';
-import {
-  Booking, subscribeToScheduleBookings,
-  checkInBooking, findBookingByCode,
-} from '../../services/bookingService';
-import { getBookedSeats } from '../../services/bookingService';
+import { Booking, checkInBooking, findBookingByCode, getBookedSeats } from '../../services/bookingService';
+
+// ─── Fullscreen Carousel ──────────────────────────────────────────────────────
+
+const FullscreenSchedule = ({
+  schedules, movies, onClose,
+}: {
+  schedules: Schedule[];
+  movies:    Movie[];
+  onClose:   () => void;
+}) => {
+  const [idx, setIdx] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Auto-advance every 6 seconds
+  useEffect(() => {
+    if (schedules.length <= 1) return;
+    timerRef.current = setInterval(() => {
+      setIdx(p => (p + 1) % schedules.length);
+    }, 6000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [schedules.length]);
+
+  const goTo = (n: number) => {
+    setIdx((n + schedules.length) % schedules.length);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  if (schedules.length === 0) {
+    return (
+      <div style={overlay}>
+        <div style={overlayInner}>
+          <div style={{ fontSize: '4rem', marginBottom: 20 }}>📅</div>
+          <div style={{ fontSize: '1.4rem', color: '#fff' }}>No shows scheduled today.</div>
+          <button style={closeBtn} onClick={onClose}>✕ Close</button>
+        </div>
+      </div>
+    );
+  }
+
+  const s      = schedules[idx];
+  const movie  = movies.find(m => m.id === s.movieId);
+  const status = autoStatus(s.date, s.startTime, s.endTime);
+
+  const statusLabel = {
+    running:   { text: 'NOW PLAYING', color: '#4caf82', pulse: true },
+    upcoming:  { text: 'UP NEXT',     color: '#c9a84c', pulse: false },
+    completed: { text: 'COMPLETED',   color: '#888',    pulse: false },
+    cancelled: { text: 'CANCELLED',   color: '#e05c5c', pulse: false },
+  }[status];
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <div style={{ ...overlayContent, background: movie?.color || '#0f1628' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Close button */}
+        <button style={closeBtn} onClick={onClose}>✕</button>
+
+        {/* Navigation arrows */}
+        {schedules.length > 1 && (
+          <>
+            <button style={{ ...navBtn, left: 24 }} onClick={() => goTo(idx - 1)}>‹</button>
+            <button style={{ ...navBtn, right: 24 }} onClick={() => goTo(idx + 1)}>›</button>
+          </>
+        )}
+
+        {/* Status label */}
+        <div style={{
+          fontSize: '0.85rem', letterSpacing: '0.25em', fontWeight: 700,
+          color: statusLabel.color,
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28,
+          animation: statusLabel.pulse ? 'pulse 2s infinite' : 'none',
+        }}>
+          {statusLabel.pulse && (
+            <span style={{
+              width: 10, height: 10, borderRadius: '50%',
+              background: statusLabel.color, display: 'inline-block',
+            }} />
+          )}
+          {statusLabel.text}
+        </div>
+
+        {/* Emoji */}
+        <div style={{ fontSize: '7rem', marginBottom: 24, lineHeight: 1 }}>
+          {movie?.emoji ?? '🎬'}
+        </div>
+
+        {/* Title */}
+        <div style={{
+          fontFamily: 'var(--font-heading)',
+          fontSize: 'clamp(1.8rem, 5vw, 3.2rem)',
+          fontWeight: 800, color: '#fff',
+          textAlign: 'center', marginBottom: 12,
+          textShadow: '0 2px 20px rgba(0,0,0,0.5)',
+        }}>
+          {movie?.title ?? '—'}
+        </div>
+
+        {/* Time */}
+        <div style={{
+          fontSize: 'clamp(1rem, 3vw, 1.5rem)',
+          color: 'rgba(255,255,255,0.7)',
+          marginBottom: 8,
+        }}>
+          {s.startTime} — {s.endTime}
+        </div>
+
+        {/* Duration + free badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
+          <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.55)' }}>
+            {movie?.duration} min
+          </span>
+          {s.freeTickets && (
+            <span style={{
+              padding: '3px 12px', borderRadius: 99,
+              background: '#c9a84c', color: '#0f1628',
+              fontSize: '0.8rem', fontWeight: 700,
+            }}>
+              FREE ENTRY
+            </span>
+          )}
+        </div>
+
+        {/* Slide dots */}
+        {schedules.length > 1 && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {schedules.map((_, i) => (
+              <span
+                key={i}
+                onClick={() => goTo(i)}
+                style={{
+                  width: i === idx ? 28 : 8, height: 8,
+                  borderRadius: 99, cursor: 'pointer',
+                  background: i === idx ? '#c9a84c' : 'rgba(255,255,255,0.25)',
+                  transition: 'all 0.3s ease',
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Mini schedule strip at bottom */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          padding: '12px 32px',
+          background: 'rgba(0,0,0,0.35)',
+          display: 'flex', gap: 16, overflowX: 'auto',
+        }}>
+          {schedules.map((sc, i) => {
+            const mv  = movies.find(m => m.id === sc.movieId);
+            const st  = autoStatus(sc.date, sc.startTime, sc.endTime);
+            const col = st === 'running' ? '#4caf82' : st === 'upcoming' ? '#c9a84c' : 'rgba(255,255,255,0.3)';
+            return (
+              <div
+                key={sc.id}
+                onClick={() => goTo(i)}
+                style={{
+                  flexShrink: 0, cursor: 'pointer', textAlign: 'center',
+                  opacity: i === idx ? 1 : 0.6,
+                  borderBottom: `2px solid ${i === idx ? '#c9a84c' : 'transparent'}`,
+                  paddingBottom: 4, transition: 'all 0.2s',
+                }}
+              >
+                <div style={{ fontSize: '1.2rem' }}>{mv?.emoji ?? '🎬'}</div>
+                <div style={{ fontSize: '0.68rem', color: col, fontWeight: 600 }}>{sc.startTime}</div>
+                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', maxWidth: 70,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {mv?.title}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Overlay styles ────────────────────────────────────────────────────────────
+const overlay: React.CSSProperties = {
+  position: 'fixed', inset: 0, zIndex: 9999,
+  background: 'rgba(0,0,0,0.85)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+};
+const overlayInner: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', alignItems: 'center',
+  color: 'rgba(255,255,255,0.6)',
+};
+const overlayContent: React.CSSProperties = {
+  position: 'relative',
+  width: '100%', maxWidth: '100vw', height: '100vh',
+  display: 'flex', flexDirection: 'column',
+  alignItems: 'center', justifyContent: 'center',
+  padding: '40px 80px 100px',
+  transition: 'background 0.5s ease',
+};
+const closeBtn: React.CSSProperties = {
+  position: 'absolute', top: 20, right: 24,
+  background: 'rgba(255,255,255,0.15)', border: 'none',
+  color: '#fff', fontSize: '1rem', padding: '6px 14px',
+  borderRadius: 99, cursor: 'pointer',
+};
+const navBtn: React.CSSProperties = {
+  position: 'absolute', top: '50%', transform: 'translateY(-50%)',
+  background: 'rgba(255,255,255,0.1)', border: 'none',
+  color: '#fff', fontSize: '2.5rem', width: 52, height: 52,
+  borderRadius: '50%', cursor: 'pointer', display: 'flex',
+  alignItems: 'center', justifyContent: 'center',
+};
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 const statusBadge = (s: Schedule) => {
-  const status = autoStatus(s.date, s.startTime, s.endTime);
+  const st  = autoStatus(s.date, s.startTime, s.endTime);
   const map = {
-    running:   { variant: 'success' as const, label: '🔴 Running'   },
-    upcoming:  { variant: 'info'    as const, label: '⏳ Upcoming'  },
-    completed: { variant: 'muted'   as const, label: '✅ Completed' },
-    cancelled: { variant: 'danger'  as const, label: '❌ Cancelled' },
+    running:   { v: 'success' as const, label: '🔴 Running'   },
+    upcoming:  { v: 'info'    as const, label: '⏳ Upcoming'  },
+    completed: { v: 'muted'   as const, label: '✅ Completed' },
+    cancelled: { v: 'danger'  as const, label: '❌ Cancelled' },
   };
-  const { variant, label } = map[status];
-  return <Badge variant={variant}>{label}</Badge>;
+  const { v, label } = map[st];
+  return <Badge variant={v}>{label}</Badge>;
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const StaffIndex = () => {
-  const { uid } = useAuth();
-
-  const [rooms,      setRooms]      = useState<Room[]>([]);
-  const [templates,  setTemplates]  = useState<RoomTemplate[]>([]);
-  const [movies,     setMovies]     = useState<Movie[]>([]);
-  const [schedules,  setSchedules]  = useState<Schedule[]>([]);
-
-  // Seat map state
+  const [rooms,     setRooms]     = useState<Room[]>([]);
+  const [templates, setTemplates] = useState<RoomTemplate[]>([]);
+  const [movies,    setMovies]    = useState<Movie[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [bookedSeats,  setBookedSeats]  = useState<string[]>([]);
+  const [seatLoading,  setSeatLoading]  = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
-  const [bookedSeats,      setBookedSeats]      = useState<string[]>([]);
-  const [seatLoading,      setSeatLoading]      = useState(false);
 
-  // Check-in state
+  // Check-in
   const [ticketCode,  setTicketCode]  = useState('');
-  const [scanResult,  setScanResult]  = useState<{ ok: boolean; message: string; booking?: Booking } | null>(null);
+  const [scanResult,  setScanResult]  = useState<{ ok: boolean; message: string } | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
 
-  // The staff sees the first active room (in a real system, staff would be assigned to a room)
+  // Fullscreen
+  const [showFullscreen, setShowFullscreen] = useState(false);
+
   const activeRoom     = rooms.find(r => r.status === 'active') ?? rooms[0] ?? null;
   const activeTemplate = activeRoom ? templates.find(t => t.id === activeRoom.templateId) ?? null : null;
 
@@ -60,17 +263,18 @@ const StaffIndex = () => {
     return subscribeToRoomSchedules(activeRoom.id, setSchedules);
   }, [activeRoom?.id]);
 
-  // Today's schedule sorted by time
   const todaySchedules = schedules
     .filter(s => s.date === todayString())
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  // Currently running show
-  const runningShow = todaySchedules.find(
-    s => autoStatus(s.date, s.startTime, s.endTime) === 'running'
-  ) ?? todaySchedules[0] ?? null;
+  // Auto-select the currently running or next upcoming show
+  useEffect(() => {
+    if (!todaySchedules.length || selectedSchedule) return;
+    const running = todaySchedules.find(s => autoStatus(s.date, s.startTime, s.endTime) === 'running');
+    const first   = running ?? todaySchedules[0];
+    if (first) handleSelectSchedule(first);
+  }, [todaySchedules.length]);
 
-  // ── Load booked seats when schedule is selected ────────────────────────────
   const handleSelectSchedule = async (s: Schedule) => {
     setSelectedSchedule(s);
     setSeatLoading(true);
@@ -82,13 +286,6 @@ const StaffIndex = () => {
     }
   };
 
-  useEffect(() => {
-    if (runningShow && !selectedSchedule) {
-      handleSelectSchedule(runningShow);
-    }
-  }, [runningShow?.id]);
-
-  // ── Check-in by code ───────────────────────────────────────────────────────
   const handleCheckIn = async () => {
     if (!ticketCode.trim()) return;
     setScanLoading(true);
@@ -96,19 +293,18 @@ const StaffIndex = () => {
     try {
       const booking = await findBookingByCode(ticketCode.trim());
       if (!booking) {
-        setScanResult({ ok: false, message: `No ticket found for code "${ticketCode.toUpperCase()}".` });
+        setScanResult({ ok: false, message: `No ticket found for "${ticketCode.toUpperCase()}".` });
       } else if (booking.roomId !== activeRoom?.id) {
         setScanResult({ ok: false, message: 'This ticket is for a different room.' });
       } else if (booking.status === 'checked-in') {
-        setScanResult({ ok: false, message: 'Already checked in.', booking });
+        setScanResult({ ok: false, message: `Already checked in. (${booking.userName})` });
       } else if (booking.status === 'cancelled') {
-        setScanResult({ ok: false, message: 'This ticket has been cancelled.', booking });
+        setScanResult({ ok: false, message: 'This ticket has been cancelled.' });
       } else {
         await checkInBooking(booking.id);
-        setScanResult({ ok: true, message: `✅ ${booking.userName} — check-in successful!`, booking });
+        setScanResult({ ok: true, message: `✅ ${booking.userName} — checked in! (${booking.movieTitle} ${booking.showTime})` });
         setTicketCode('');
-        // Refresh booked seats if relevant
-        if (selectedSchedule && booking.scheduleId === selectedSchedule.id) {
+        if (selectedSchedule?.id === booking.scheduleId) {
           const seats = await getBookedSeats(selectedSchedule.id);
           setBookedSeats(seats);
         }
@@ -124,7 +320,7 @@ const StaffIndex = () => {
         <div className="page-header"><h2>Staff Panel</h2></div>
         <div className="empty-state">
           <div className="empty-state-icon">🏟️</div>
-          <div className="empty-state-text">No active cinema room found. Contact the Cinema Room Manager.</div>
+          <div className="empty-state-text">No active cinema room. Contact the Cinema Room Manager.</div>
         </div>
       </div>
     );
@@ -132,25 +328,36 @@ const StaffIndex = () => {
 
   return (
     <div className="page fade-in">
+      {showFullscreen && (
+        <FullscreenSchedule
+          schedules={todaySchedules}
+          movies={movies}
+          onClose={() => setShowFullscreen(false)}
+        />
+      )}
+
       <div className="page-header">
         <h2>Staff Panel — {activeRoom.name}</h2>
         <p>Today's schedule and ticket check-in.</p>
       </div>
 
-      {/* ── Today's date banner ── */}
+      {/* Date banner */}
       <div style={{
         padding: '10px 16px', marginBottom: 20,
         background: 'var(--gold-dim)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', fontSize: '0.82rem',
         color: 'var(--gold)', fontWeight: 600,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        📅 {formatDate(todayString())}
+        <span>📅 {formatDate(todayString())}</span>
+        <Button size="sm" onClick={() => setShowFullscreen(true)}>
+          ⛶ Fullscreen View
+        </Button>
       </div>
 
-      {/* ── Top row: Schedule + Check-in ── */}
       <div className="two-col" style={{ alignItems: 'start' }}>
 
-        {/* Today's schedule */}
+        {/* Schedule list */}
         <Card title="Today's Schedule">
           <div className="card-body">
             {todaySchedules.length === 0 ? (
@@ -176,6 +383,13 @@ const StaffIndex = () => {
                     <div className="schedule-movie" style={{ flex: 1 }}>
                       <div className="schedule-movie-name">
                         {movie?.emoji} {movie?.title ?? '—'}
+                        {s.freeTickets && (
+                          <span style={{
+                            marginLeft: 7, fontSize: '0.65rem', padding: '1px 5px',
+                            background: 'var(--gold)', color: 'var(--navy)',
+                            borderRadius: 99, fontWeight: 700,
+                          }}>FREE</span>
+                        )}
                       </div>
                       <div className="schedule-movie-meta">
                         {movie?.duration} min · ends {s.endTime}
@@ -189,7 +403,7 @@ const StaffIndex = () => {
           </div>
         </Card>
 
-        {/* Quick check-in */}
+        {/* Check-in */}
         <Card title="Ticket Check-In">
           <div className="card-body">
             <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
@@ -210,18 +424,13 @@ const StaffIndex = () => {
 
             {scanResult && (
               <div style={{
-                padding: '10px 14px', borderRadius: 'var(--radius)', marginBottom: 12,
+                padding: '10px 14px', borderRadius: 'var(--radius)', marginBottom: 10,
                 background: scanResult.ok ? 'rgba(76,175,130,0.1)' : 'rgba(224,92,92,0.1)',
                 border: `1px solid ${scanResult.ok ? 'rgba(76,175,130,0.3)' : 'rgba(224,92,92,0.3)'}`,
                 color: scanResult.ok ? 'var(--success)' : 'var(--danger)',
                 fontSize: '0.83rem',
               }}>
                 {scanResult.message}
-                {scanResult.booking && (
-                  <div style={{ marginTop: 5, fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                    {scanResult.booking.movieTitle} · {scanResult.booking.showTime} · {scanResult.booking.seats.length} seat(s)
-                  </div>
-                )}
               </div>
             )}
 
@@ -229,19 +438,19 @@ const StaffIndex = () => {
               padding: 12, background: 'var(--navy)', borderRadius: 'var(--radius)',
               fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center',
             }}>
-              Type the ticket code and press Enter or click Verify.
+              Type the ticket code and press Enter to verify.
             </div>
           </div>
         </Card>
       </div>
 
-      {/* ── Seat map for selected show ── */}
+      {/* Seat map */}
       {activeTemplate && (
         <Card
           title={
             selectedSchedule
-              ? `Seat Overview — ${movies.find(m => m.id === selectedSchedule.movieId)?.title ?? '?'} @ ${selectedSchedule.startTime}`
-              : 'Seat Overview'
+              ? `Seat Map — ${movies.find(m => m.id === selectedSchedule.movieId)?.title ?? '?'} @ ${selectedSchedule.startTime}`
+              : 'Seat Map'
           }
         >
           {seatLoading ? (
@@ -249,10 +458,7 @@ const StaffIndex = () => {
               Loading seat data…
             </div>
           ) : (
-            <SeatMap
-              template={activeTemplate}
-              bookedSeats={bookedSeats}
-            />
+            <SeatMap template={activeTemplate} bookedSeats={bookedSeats} />
           )}
           {selectedSchedule && (
             <div style={{
@@ -261,7 +467,10 @@ const StaffIndex = () => {
               display: 'flex', justifyContent: 'space-between',
             }}>
               <span>🔴 Booked: {bookedSeats.length}</span>
-              <span>🟡 Available: {activeTemplate ? Object.values(activeTemplate.sections).reduce((s, sec) => s + sec.seatRows * sec.seatCols, 0) - bookedSeats.length : 0}</span>
+              <span>🟡 Available: {
+                Object.values(activeTemplate.sections)
+                  .reduce((s, sec) => s + sec.seatRows * sec.seatCols, 0) - bookedSeats.length
+              }</span>
             </div>
           )}
         </Card>

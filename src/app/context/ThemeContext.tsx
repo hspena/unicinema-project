@@ -12,7 +12,7 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  darkMode:    true,
+  darkMode:    false,
   setDarkMode: () => {},
   fontSize:    'Medium',
   setFontSize: () => {},

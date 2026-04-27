@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth }  from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Toggle }   from '../components/ui';
-import { registerMoviegoer } from '../services/userService';
+import { registerMoviegoer, isUsernameAvailable } from '../services/userService';
 
 type AuthMode = 'login' | 'register';
 
@@ -13,74 +13,147 @@ const FEATURES = [
   'Dark mode, accessibility, and student-friendly',
 ];
 
+// ─── Username validator ───────────────────────────────────────────────────────
+const validateUsername = (u: string): string | null => {
+  if (!u) return 'Username is required.';
+  if (u.length < 3) return 'Username must be at least 3 characters.';
+  if (u.length > 20) return 'Username must be 20 characters or less.';
+  if (!/^[a-z0-9_]+$/.test(u)) return 'Only lowercase letters, numbers, and underscores.';
+  return null;
+};
+
+// ─── User display component (shown in sidebar/profile) ───────────────────────
+export const UserDisplay = ({
+  displayName, username, size = 'md',
+}: {
+  displayName: string;
+  username:    string;
+  size?:       'sm' | 'md';
+}) => {
+  const same = displayName.toLowerCase() === username.toLowerCase();
+  const fs1  = size === 'sm' ? '0.82rem' : '0.9rem';
+  const fs2  = size === 'sm' ? '0.68rem' : '0.74rem';
+
+  return (
+    <div>
+      <div style={{ fontSize: fs1, fontWeight: 600, color: 'var(--text-primary)' }}>
+        {displayName}
+      </div>
+      {!same && (
+        <div style={{ fontSize: fs2, color: 'var(--text-muted)', marginTop: 1 }}>
+          @{username}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Login Page ──────────────────────────────────────────────────────────
 const Login = () => {
   const { login, isLoading, error, clearError } = useAuth();
   const { darkMode, setDarkMode }               = useTheme();
 
-  const [mode,     setMode]     = useState<AuthMode>('login');
+  const [mode, setMode] = useState<AuthMode>('login');
+
+  // Login fields
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
 
   // Register fields
-  const [regName,    setRegName]    = useState('');
-  const [regEmail,   setRegEmail]   = useState('');
-  const [regPass,    setRegPass]    = useState('');
-  const [regConfirm, setRegConfirm] = useState('');
-  const [regError,   setRegError]   = useState('');
-  const [regLoading, setRegLoading] = useState(false);
-  const [regSuccess, setRegSuccess] = useState(false);
+  const [regUsername,    setRegUsername]    = useState('');
+  const [regDisplayName, setRegDisplayName] = useState('');
+  const [regEmail,       setRegEmail]       = useState('');
+  const [regPass,        setRegPass]        = useState('');
+  const [regConfirm,     setRegConfirm]     = useState('');
+  const [regError,       setRegError]       = useState('');
+  const [regLoading,     setRegLoading]     = useState(false);
+  const [regSuccess,     setRegSuccess]     = useState(false);
+  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameStatus,   setUsernameStatus]   = useState<'idle' | 'available' | 'taken' | 'invalid'>('idle');
 
   // ── Login ──────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     if (!email || !password) return;
     await login(email, password);
   };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleLogin();
+  };
+
+  // ── Username check (debounced) ─────────────────────────────────────────────
+  const handleUsernameChange = async (value: string) => {
+    const clean = value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    setRegUsername(clean);
+
+    // Auto-fill displayName if it's still the same as the old username
+    if (!regDisplayName || regDisplayName === regUsername) {
+      setRegDisplayName(clean);
+    }
+
+    if (!clean || clean.length < 3) {
+      setUsernameStatus('idle');
+      return;
+    }
+
+    const validErr = validateUsername(clean);
+    if (validErr) { setUsernameStatus('invalid'); return; }
+
+    setUsernameChecking(true);
+    setUsernameStatus('idle');
+    try {
+      const available = await isUsernameAvailable(clean);
+      setUsernameStatus(available ? 'available' : 'taken');
+    } finally {
+      setUsernameChecking(false);
+    }
   };
 
   // ── Register ───────────────────────────────────────────────────────────────
   const handleRegister = async () => {
     setRegError('');
-    if (!regName || !regEmail || !regPass || !regConfirm) {
-      setRegError('All fields are required.');
-      return;
-    }
-    if (regPass.length < 6) {
-      setRegError('Password must be at least 6 characters.');
-      return;
-    }
-    if (regPass !== regConfirm) {
-      setRegError('Passwords do not match.');
-      return;
-    }
+
+    const uErr = validateUsername(regUsername);
+    if (uErr) { setRegError(uErr); return; }
+    if (!regDisplayName.trim()) { setRegError('Display name is required.'); return; }
+    if (!regEmail)               { setRegError('Email is required.'); return; }
+    if (regPass.length < 6)      { setRegError('Password must be at least 6 characters.'); return; }
+    if (regPass !== regConfirm)  { setRegError('Passwords do not match.'); return; }
+    if (usernameStatus === 'taken') { setRegError('That username is already taken.'); return; }
 
     setRegLoading(true);
     try {
-      await registerMoviegoer({ name: regName, email: regEmail, password: regPass });
+      await registerMoviegoer({
+        name:        regDisplayName,
+        displayName: regDisplayName,
+        username:    regUsername,
+        email:       regEmail,
+        password:    regPass,
+      });
       setRegSuccess(true);
     } catch (err: any) {
       const msg =
-        err.code === 'auth/email-already-in-use'
-          ? 'An account with this email already exists.'
-          : err.code === 'auth/invalid-email'
-          ? 'Please enter a valid email address.'
-          : err.message ?? 'Registration failed. Please try again.';
+        err.code === 'auth/email-already-in-use' ? 'An account with this email already exists.' :
+        err.code === 'auth/invalid-email'         ? 'Please enter a valid email address.' :
+        err.message ?? 'Registration failed.';
       setRegError(msg);
     } finally {
       setRegLoading(false);
     }
   };
 
-  const switchMode = (newMode: AuthMode) => {
-    setMode(newMode);
-    clearError();
-    setRegError('');
-    setRegSuccess(false);
+  const switchMode = (m: AuthMode) => {
+    setMode(m); clearError(); setRegError(''); setRegSuccess(false);
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const usernameIndicator = () => {
+    if (usernameChecking) return { color: 'var(--text-muted)', text: '⏳ Checking…' };
+    if (usernameStatus === 'available') return { color: 'var(--success)', text: '✓ Available' };
+    if (usernameStatus === 'taken')     return { color: 'var(--danger)',  text: '✗ Taken' };
+    if (usernameStatus === 'invalid')   return { color: 'var(--warning)', text: '⚠ Invalid format' };
+    return null;
+  };
+  const indicator = usernameIndicator();
+
   return (
     <div className="login-page">
       {/* Left panel */}
@@ -88,7 +161,7 @@ const Login = () => {
         <div className="login-left-content">
           <div className="login-logo">🎬</div>
           <h2>The ultimate cinema experience starts here.</h2>
-          <p>A universal ticketing platform built for students, cinemas, and staff — seamlessly connected.</p>
+          <p>A universal ticketing platform built for students, cinemas, and staff.</p>
           {FEATURES.map((f, i) => (
             <div key={i} className="login-feature">
               <div className="login-feature-dot" />
@@ -102,23 +175,13 @@ const Login = () => {
       <div className="login-right">
         <div className="login-form">
 
-          {/* ── Tab switcher ── */}
+          {/* Tabs */}
           <div className="login-tabs">
-            <button
-              className={`login-tab ${mode === 'login' ? 'active' : ''}`}
-              onClick={() => switchMode('login')}
-            >
-              Sign In
-            </button>
-            <button
-              className={`login-tab ${mode === 'register' ? 'active' : ''}`}
-              onClick={() => switchMode('register')}
-            >
-              Register
-            </button>
+            <button className={`login-tab ${mode === 'login'    ? 'active' : ''}`} onClick={() => switchMode('login')}>Sign In</button>
+            <button className={`login-tab ${mode === 'register' ? 'active' : ''}`} onClick={() => switchMode('register')}>Register</button>
           </div>
 
-          {/* ─── LOGIN FORM ───────────────────────────────────────────── */}
+          {/* ── LOGIN ── */}
           {mode === 'login' && (
             <>
               <h3>Welcome back</h3>
@@ -133,88 +196,55 @@ const Login = () => {
 
               <div className="input-group">
                 <label className="input-label">Email Address</label>
-                <input
-                  className="input-field"
-                  type="email"
-                  placeholder="you@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={isLoading}
-                />
+                <input className="input-field" type="email" placeholder="you@email.com"
+                  value={email} onChange={e => setEmail(e.target.value)}
+                  onKeyDown={handleKeyDown} disabled={isLoading} />
               </div>
-
               <div className="input-group">
                 <label className="input-label">Password</label>
-                <input
-                  className="input-field"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                <span style={{ fontSize: '0.82rem', color: 'var(--gold)', cursor: 'pointer' }}>
-                  Forgot password?
-                </span>
+                <input className="input-field" type="password" placeholder="••••••••"
+                  value={password} onChange={e => setPassword(e.target.value)}
+                  onKeyDown={handleKeyDown} disabled={isLoading} />
               </div>
 
               <button
                 className="btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center', opacity: isLoading ? 0.7 : 1 }}
-                onClick={handleLogin}
-                disabled={isLoading}
+                style={{ width: '100%', justifyContent: 'center', opacity: isLoading ? 0.7 : 1, marginTop: 8 }}
+                onClick={handleLogin} disabled={isLoading}
               >
                 {isLoading ? '⏳ Signing in…' : 'Sign In'}
               </button>
 
-              <div style={{ marginTop: 16, fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+              <div style={{ marginTop: 14, fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                 New moviegoer?{' '}
-                <span
-                  style={{ color: 'var(--gold)', cursor: 'pointer' }}
-                  onClick={() => switchMode('register')}
-                >
+                <span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => switchMode('register')}>
                   Create a free account
                 </span>
               </div>
             </>
           )}
 
-          {/* ─── REGISTER FORM ────────────────────────────────────────── */}
+          {/* ── REGISTER ── */}
           {mode === 'register' && (
             <>
               <h3>Create Account</h3>
               <p>Register as a Moviegoer to start booking tickets.</p>
 
-              {/* Success state */}
               {regSuccess ? (
                 <div style={{
-                  padding: '20px',
-                  textAlign: 'center',
+                  padding: 20, textAlign: 'center',
                   background: 'rgba(76,175,130,0.1)',
                   border: '1px solid rgba(76,175,130,0.3)',
                   borderRadius: 'var(--radius)',
                 }}>
                   <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>✅</div>
-                  <div style={{ fontWeight: 600, color: 'var(--success)', marginBottom: 6 }}>
-                    Account Created!
-                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--success)', marginBottom: 6 }}>Account Created!</div>
                   <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-                    Your Moviegoer account is ready. Sign in with your new credentials.
+                    Welcome, <strong>{regDisplayName}</strong> (@{regUsername})!
+                    Sign in with your new credentials.
                   </div>
-                  <button
-                    className="btn btn-primary"
-                    style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => {
-                      setEmail(regEmail);
-                      setPassword(regPass);
-                      switchMode('login');
-                    }}
-                  >
+                  <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => { setEmail(regEmail); setPassword(regPass); switchMode('login'); }}>
                     Go to Sign In →
                   </button>
                 </div>
@@ -227,98 +257,92 @@ const Login = () => {
                     </div>
                   )}
 
+                  {/* Username */}
                   <div className="input-group">
-                    <label className="input-label">Full Name</label>
+                    <label className="input-label">
+                      Username *
+                      {indicator && (
+                        <span style={{ marginLeft: 8, fontSize: '0.72rem', color: indicator.color }}>
+                          {indicator.text}
+                        </span>
+                      )}
+                    </label>
                     <input
                       className="input-field"
-                      type="text"
-                      placeholder="e.g. Alex Taylor"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      disabled={regLoading}
+                      placeholder="e.g. moviefan99"
+                      value={regUsername}
+                      onChange={e => handleUsernameChange(e.target.value)}
+                      style={{ borderColor: usernameStatus === 'taken' ? 'var(--danger)' : usernameStatus === 'available' ? 'var(--success)' : undefined }}
                     />
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 3 }}>
+                      Lowercase letters, numbers, underscores only. Used to @mention you.
+                    </div>
                   </div>
 
+                  {/* Display Name */}
                   <div className="input-group">
-                    <label className="input-label">Email Address</label>
+                    <label className="input-label">Display Name *</label>
                     <input
                       className="input-field"
-                      type="email"
-                      placeholder="you@email.com"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      disabled={regLoading}
+                      placeholder="e.g. Movie Fan 99"
+                      value={regDisplayName}
+                      onChange={e => setRegDisplayName(e.target.value)}
                     />
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 3 }}>
+                      This is your public name. You can make it different from your username.
+                    </div>
                   </div>
 
+                  {/* Email */}
+                  <div className="input-group">
+                    <label className="input-label">Email Address *</label>
+                    <input className="input-field" type="email" placeholder="you@email.com"
+                      value={regEmail} onChange={e => setRegEmail(e.target.value)} />
+                  </div>
+
+                  {/* Password */}
                   <div className="input-row">
                     <div className="input-group">
-                      <label className="input-label">Password</label>
-                      <input
-                        className="input-field"
-                        type="password"
-                        placeholder="Min. 6 characters"
-                        value={regPass}
-                        onChange={(e) => setRegPass(e.target.value)}
-                        disabled={regLoading}
-                      />
+                      <label className="input-label">Password *</label>
+                      <input className="input-field" type="password" placeholder="Min. 6 chars"
+                        value={regPass} onChange={e => setRegPass(e.target.value)} />
                     </div>
                     <div className="input-group">
-                      <label className="input-label">Confirm Password</label>
-                      <input
-                        className="input-field"
-                        type="password"
-                        placeholder="Repeat password"
-                        value={regConfirm}
-                        onChange={(e) => setRegConfirm(e.target.value)}
-                        disabled={regLoading}
-                      />
+                      <label className="input-label">Confirm Password *</label>
+                      <input className="input-field" type="password" placeholder="Repeat"
+                        value={regConfirm} onChange={e => setRegConfirm(e.target.value)} />
                     </div>
                   </div>
 
+                  {/* Info note */}
                   <div style={{
-                    padding: '10px 12px',
-                    marginBottom: 16,
-                    background: 'var(--gold-dim)',
-                    borderRadius: 'var(--radius)',
-                    border: '1px solid var(--border)',
-                    fontSize: '0.78rem',
-                    color: 'var(--text-muted)',
+                    padding: '9px 12px', marginBottom: 14,
+                    background: 'var(--gold-dim)', borderRadius: 'var(--radius)',
+                    border: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--text-muted)',
                   }}>
                     🎬 You'll be registered as a <strong style={{ color: 'var(--gold)' }}>Moviegoer</strong>.
-                    For other roles, contact your system admin.
+                    For other roles, contact your admin.
                   </div>
 
                   <button
                     className="btn btn-primary"
                     style={{ width: '100%', justifyContent: 'center', opacity: regLoading ? 0.7 : 1 }}
-                    onClick={handleRegister}
-                    disabled={regLoading}
+                    onClick={handleRegister} disabled={regLoading}
                   >
                     {regLoading ? '⏳ Creating account…' : 'Create Account'}
                   </button>
 
-                  <div style={{ marginTop: 16, fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                  <div style={{ marginTop: 14, fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                     Already have an account?{' '}
-                    <span
-                      style={{ color: 'var(--gold)', cursor: 'pointer' }}
-                      onClick={() => switchMode('login')}
-                    >
-                      Sign in
-                    </span>
+                    <span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => switchMode('login')}>Sign in</span>
                   </div>
                 </>
               )}
             </>
           )}
 
-          {/* Theme toggle */}
           <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
-            <Toggle
-              checked={!darkMode}
-              onChange={(e) => setDarkMode(!e.target.checked)}
-              label="Light"
-            />
+            <Toggle checked={!darkMode} onChange={e => setDarkMode(!e.target.checked)} label="Light" />
           </div>
         </div>
       </div>
