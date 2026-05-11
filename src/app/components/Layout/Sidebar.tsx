@@ -4,17 +4,40 @@ import { UserRole } from '../../types';
 import { NAV_CONFIG, ROLE_ICONS, ROLE_DISPLAY_NAMES } from '../../utils/helpers';
 import { SelectField } from '../ui';
 
-const Sidebar = () => {
-  const { role, actualRole, uid, currentView, setView, switchRole, logout } = useAuth();
+interface SidebarProps {
+  isOpen:  boolean;
+  onClose: () => void;
+}
+
+const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
+  const { role, actualRole, currentView, setView, switchRole, logout } = useAuth();
   const navSections = NAV_CONFIG[role] ?? [];
 
+  const handleNavClick = (view: string) => {
+    setView(view);
+    onClose(); // close sidebar on mobile after navigation
+  };
+
   return (
-    <aside className="sidebar">
-      {/* Brand */}
-      <div className="sidebar-brand">
+    <aside className={`sidebar ${isOpen ? 'sidebar-open' : ''}`}>
+      {/* Brand + close button (mobile) */}
+      <div className="sidebar-brand" style={{ position: 'relative' }}>
         <div className="sidebar-brand-icon">🎬</div>
-        <h1>UniCinema</h1>
+        <h1>CineHub</h1>
         <p>Universal Ticketing</p>
+        {/* Mobile close button */}
+        <button
+          onClick={onClose}
+          style={{
+            display: 'none', // shown via CSS on mobile
+            position: 'absolute', top: 12, right: 12,
+            background: 'none', border: 'none',
+            color: 'var(--text-muted)', fontSize: '1.2rem',
+            cursor: 'pointer', padding: 4,
+          }}
+          className="sidebar-close-btn"
+          aria-label="Close menu"
+        >✕</button>
       </div>
 
       {/* Role switcher — Admin only */}
@@ -42,7 +65,7 @@ const Sidebar = () => {
               <div
                 key={item.view}
                 className={`nav-item ${currentView === item.view ? 'active' : ''}`}
-                onClick={() => setView(item.view)}
+                onClick={() => handleNavClick(item.view)}
               >
                 <span className="nav-icon">{item.icon}</span>
                 <span>{item.label}</span>
@@ -55,7 +78,7 @@ const Sidebar = () => {
         <div className="sidebar-section-label">Account</div>
         <div
           className={`nav-item ${currentView === 'settings' ? 'active' : ''}`}
-          onClick={() => setView('settings')}
+          onClick={() => handleNavClick('settings')}
         >
           <span className="nav-icon">⚙️</span>
           <span>Settings</span>

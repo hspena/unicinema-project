@@ -1063,3 +1063,368 @@ body {
   font-size: 0.72rem; color: var(--text-muted);
   margin: 3px 0 5px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Base mobile overrides (applies ≤768px) ───────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* App layout: sidebar hidden, full-width content */
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    z-index: 200;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* Overlay when sidebar is open */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 199;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+
+  .topbar {
+    padding: 0 14px;
+  }
+
+  /* Hamburger menu button - shown on mobile */
+  .mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 1.1rem;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+
+  .page {
+    padding: 14px;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-header h2 {
+    font-size: 1.3rem;
+  }
+
+  /* Grids → single column on mobile */
+  .three-col,
+  .two-col,
+  .room-grid,
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Input rows → stacked */
+  .input-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Table toolbar → wrap */
+  .table-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  /* Modals → full width */
+  .modal-overlay .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 16px 16px 0 0 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Cards */
+  .card {
+    border-radius: var(--radius);
+  }
+
+  /* Seat map on mobile - smaller seats */
+  .sm-seat, .rtb-seat {
+    width: 20px !important;
+    height: 18px !important;
+    font-size: 0.48rem !important;
+  }
+
+  .sm-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Ticket cards */
+  .ticket-card-bottom {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+  }
+
+  /* Login page */
+  .login-page {
+    flex-direction: column;
+  }
+
+  .login-left {
+    display: none; /* Hide left panel on mobile */
+  }
+
+  .login-right {
+    width: 100%;
+    padding: 24px 16px;
+    min-height: 100vh;
+  }
+
+  .login-form {
+    max-width: 100%;
+  }
+
+  /* Schedule slots */
+  .schedule-slot {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Topbar */
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  /* Fullscreen schedule text */
+  .rm-tabs {
+    width: 100%;
+  }
+
+  .rm-tab {
+    font-size: 0.75rem;
+    padding: 8px 10px;
+  }
+
+  /* Stats grid 2-col on mobile */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Snack card */
+  .snack-card {
+    padding: 12px;
+  }
+
+  /* Movie card */
+  .movie-poster {
+    height: 160px !important;
+  }
+
+  /* Genre pills - scrollable row */
+  .genre-pills-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .genre-pills-row::-webkit-scrollbar { display: none; }
+
+  /* Room template builder sidebar stacks below canvas */
+  .rtb-body {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Reduce section preview grid gap */
+  .rtb-seat-grid {
+    gap: 2px !important;
+  }
+}
+
+/* ── Very small screens (≤400px) ─────────────────────────────────────────── */
+@media (max-width: 400px) {
+  .page { padding: 10px; }
+
+  .sm-seat, .rtb-seat {
+    width: 16px !important;
+    height: 15px !important;
+    font-size: 0.42rem !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .modal-overlay .modal {
+    max-height: 95vh;
+  }
+}
+
+/* ── Tablet (769px–1024px) ───────────────────────────────────────────────── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar { width: 200px; }
+
+  .three-col {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .page { padding: 18px 20px; }
+}
+
+/* ── Hide mobile-only elements on desktop ────────────────────────────────── */
+@media (min-width: 769px) {
+  .mobile-menu-btn  { display: none !important; }
+  .sidebar-overlay  { display: none !important; }
+}
+
+/* ── Touch-friendly hit targets ──────────────────────────────────────────── */
+@media (hover: none) and (pointer: coarse) {
+  .btn, .nav-item, .rm-tab, .login-tab {
+    min-height: 44px;
+  }
+
+  .sm-seat {
+    min-width: 22px;
+    min-height: 20px;
+  }
+
+  .icon-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
+/* ── Add these to mobile-styles.css or at the bottom of global.css ────────── */
+
+/* Show close button inside sidebar on mobile */
+@media (max-width: 768px) {
+  .sidebar-close-btn {
+    display: block !important;
+  }
+
+  /* Seat map: allow horizontal scroll on mobile */
+  .sm-root, .rtb-canvas-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* WalkupBooking modal steps - compact on mobile */
+  .walkup-steps {
+    gap: 6px;
+  }
+
+  /* Browse page - genre pills horizontal scroll */
+  .browse-genre-pills {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    gap: 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-bottom: 14px;
+  }
+  .browse-genre-pills::-webkit-scrollbar { display: none; }
+  .browse-genre-pills > div { flex-shrink: 0; }
+
+  /* Fullscreen schedule - larger touch targets */
+  .fullscreen-nav-btn {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  /* Ticket card bottom - 2 columns */
+  .ticket-card-bottom {
+    flex-wrap: wrap;
+  }
+  .ticket-card-bottom > div {
+    min-width: 45%;
+  }
+
+  /* Auth error - stack on small screens */
+  .auth-error {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  /* Modal footer - stack buttons on small screens */
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .modal-footer .btn {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+
+  /* Template builder grid - compact seats */
+  .rtb-grid {
+    gap: 6px !important;
+  }
+
+  /* Room cards - full width */
+  .room-card, .snack-card, .movie-card {
+    width: 100%;
+  }
+
+  /* Schedule page - date buttons scrollable */
+  .schedule-date-strip {
+    display: flex;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 4px;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .schedule-date-strip::-webkit-scrollbar { display: none; }
+  .schedule-date-strip .btn { flex-shrink: 0; }
+}
+
+/* ── Sidebar nav item - larger touch target on mobile ─────────────────────── */
+@media (max-width: 768px) {
+  .nav-item {
+    padding: 12px 16px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .sidebar-brand h1 { font-size: 1.2rem; }
+
+  /* Stats grid always 2-col on mobile */
+  .stat-card { padding: 14px 10px; }
+  .stat-card-value { font-size: 1.5rem; }
+}

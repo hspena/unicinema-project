@@ -6,6 +6,8 @@ import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../.
 import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Schedule, subscribeToRoomSchedules, autoStatus, todayString, formatDate } from '../../services/scheduleService';
 import { Booking, checkInBooking, findBookingByCode, getBookedSeats } from '../../services/bookingService';
+import WalkupBooking from '../../components/WalkupBooking';
+
 
 // ─── Fullscreen Carousel ──────────────────────────────────────────────────────
 
@@ -240,6 +242,10 @@ const StaffIndex = () => {
   const [seatLoading,  setSeatLoading]  = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
 
+  // Walk-up booking state
+  const [showWalkup, setShowWalkup] = useState(false);
+  const [lastWalkup, setLastWalkup] = useState<{ code: string; name: string } | null>(null);
+
   // Check-in
   const [ticketCode,  setTicketCode]  = useState('');
   const [scanResult,  setScanResult]  = useState<{ ok: boolean; message: string } | null>(null);
@@ -406,6 +412,28 @@ const StaffIndex = () => {
         {/* Check-in */}
         <Card title="Ticket Check-In">
           <div className="card-body">
+            {/* Walk-up booking button */}
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center', marginBottom: 14 }}
+              onClick={() => setShowWalkup(true)}
+            >
+              🎟️ Walk-up / Venue Booking
+            </button>
+
+            <div style={{
+              fontSize: '0.72rem', color: 'var(--text-muted)',
+              textAlign: 'center', marginBottom: 14, padding: '0 8px',
+            }}>
+              For guests at the venue — book and check in directly with or without an account.
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginBottom: 12 }}>
+              <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>
+                OR verify an existing ticket code:
+              </div>
+            </div>
+
             <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
               <div className="search-wrap" style={{ flex: 1 }}>
                 <span className="search-icon">🎟️</span>
@@ -434,14 +462,37 @@ const StaffIndex = () => {
               </div>
             )}
 
-            <div style={{
-              padding: 12, background: 'var(--navy)', borderRadius: 'var(--radius)',
-              fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center',
-            }}>
-              Type the ticket code and press Enter to verify.
-            </div>
+            {/* Last walk-up result */}
+            {lastWalkup && (
+              <div style={{
+                padding: '10px 14px', borderRadius: 'var(--radius)',
+                background: 'rgba(76,175,130,0.08)', border: '1px solid rgba(76,175,130,0.25)',
+                fontSize: '0.8rem',
+              }}>
+                <div style={{ color: 'var(--success)', fontWeight: 600, marginBottom: 3 }}>
+                  ✅ Last walk-up: {lastWalkup.name}
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  {lastWalkup.code}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
+        {activeRoom && (
+          <WalkupBooking
+            room={activeRoom}
+            open={showWalkup}
+            onClose={() => setShowWalkup(false)}
+            onBooked={(code, name) => {
+              setLastWalkup({ code, name });
+              // Refresh seat map if a show is selected
+              if (selectedSchedule) {
+                getBookedSeats(selectedSchedule.id).then(setBookedSeats);
+              }
+            }}
+          />
+        )}
       </div>
 
       {/* Seat map */}
