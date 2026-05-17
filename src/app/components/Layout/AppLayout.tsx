@@ -1,38 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar  from './Sidebar';
-import Topbar   from './Topbar';
+import Sidebar from './Sidebar';
+import Topbar  from './Topbar';
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Close sidebar on route change / window resize
+  // Auto-close sidebar when resizing to desktop
   useEffect(() => {
-    const handleResize = () => {
+    const onResize = () => {
       if (window.innerWidth > 768) setSidebarOpen(false);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
-
-  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <div className="app-layout">
-      {/* Mobile overlay */}
+
+      {/* Dark overlay behind sidebar on mobile */}
       {sidebarOpen && (
-        <div className="sidebar-overlay" onClick={closeSidebar} />
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       <Sidebar
         isOpen={sidebarOpen}
-        onClose={closeSidebar}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div className="main-content">
-        <Topbar onMenuClick={() => setSidebarOpen(prev => !prev)} />
-        <main className="page-wrapper">
+        <Topbar onMenuClick={() => setSidebarOpen(p => !p)} />
+        <div className="page-wrapper">
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );

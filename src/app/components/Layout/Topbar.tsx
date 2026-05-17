@@ -1,31 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth }  from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { getUserById } from '../../services/userService';
 
-// Page title map
 const PAGE_TITLES: Record<string, string> = {
-  // Admin
-  dashboard:   'Dashboard',
-  users:       'User Management',
-  rooms:       'Room Management',
-  movies:      'Movie Management',
-  snacks:      'Snacks Management',
-  analytics:   'Analytics',
-  // Manager
-  'cm-dashboard':  'Dashboard',
-  cinema:          'Cinema Management',
-  staff:           'Staff Management',
-  tickets:         'Ticket Management',
-  'cm-analytics':  'Analytics',
-  // Staff
-  'staff-main': 'Staff Panel',
-  // Moviegoer
-  browse:       'Now Showing',
-  schedule:     'Schedule',
-  'my-tickets': 'My Tickets',
-  // Shared
-  settings:     'Settings',
+  dashboard: 'Dashboard',      users: 'User Management',
+  rooms: 'Room Management',    movies: 'Movie Management',
+  snacks: 'Snacks Management', analytics: 'Analytics',
+  'cm-dashboard': 'Dashboard', cinema: 'Cinema Management',
+  staff: 'Staff Management',   tickets: 'Ticket Management',
+  'cm-analytics': 'Analytics', 'staff-main': 'Staff Panel',
+  browse: 'Now Showing',       schedule: 'Schedule',
+  'my-tickets': 'My Tickets',  settings: 'Settings',
 };
 
 interface TopbarProps {
@@ -33,16 +18,34 @@ interface TopbarProps {
 }
 
 const Topbar = ({ onMenuClick }: TopbarProps) => {
-  const { currentView, uid, role } = useAuth();
-  const { darkMode, setDarkMode }  = useTheme();
-  const [showNotif, setShowNotif]  = useState(false);
+  const { currentView, role }     = useAuth();
+  const { darkMode, setDarkMode } = useTheme();
+  const [showNotif, setShowNotif] = useState(false);
+  const notifRef                  = useRef<HTMLDivElement>(null);
 
   const title = PAGE_TITLES[currentView] ?? currentView;
 
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotif(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const roleAvatar =
+    role === 'Admin'       ? '👑'  :
+    role === 'Cinema Room' ? '🏟️' :
+    role === 'Staff'       ? '👤'  : '🎬';
+
   return (
     <header className="topbar">
-      {/* Left: hamburger (mobile) + page title */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+
+      {/* ── Left side: hamburger + title ── */}
+      <div className="topbar-left">
         <button
           className="mobile-menu-btn"
           onClick={onMenuClick}
@@ -50,57 +53,62 @@ const Topbar = ({ onMenuClick }: TopbarProps) => {
         >
           ☰
         </button>
-        <div className="topbar-title">{title}</div>
+        <span className="topbar-title">{title}</span>
       </div>
 
-      {/* Right: actions */}
-      <div className="topbar-actions">
+      {/* ── Right side: theme + notif + avatar ── */}
+      <div className="topbar-right">
+
         {/* Theme toggle */}
         <button
           className="icon-btn"
           onClick={() => setDarkMode(!darkMode)}
-          title={darkMode ? 'Light mode' : 'Dark mode'}
+          title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {darkMode ? '☀️' : '🌙'}
         </button>
 
         {/* Notifications */}
-        <div style={{ position: 'relative' }}>
+        <div ref={notifRef} className="notif-wrap">
           <button
-            className="icon-btn"
+            className="icon-btn notif-trigger"
             onClick={() => setShowNotif(p => !p)}
             title="Notifications"
           >
             🔔
-            <span className="notif-dot" />
+            <span className="notif-badge" />
           </button>
 
           {showNotif && (
-            <div className="notif-dropdown" onClick={() => setShowNotif(false)}>
-              <div className="notif-header">Notifications</div>
-              <div className="notif-item">
-                <div className="notif-icon">🎬</div>
-                <div>
-                  <div className="notif-text">New movie added to the catalogue</div>
-                  <div className="notif-time">Just now</div>
-                </div>
+            <div className="notif-dropdown">
+              <div className="notif-dropdown-header">
+                <span>Notifications</span>
+                <span className="notif-mark-read" onClick={() => setShowNotif(false)}>
+                  Mark all read
+                </span>
               </div>
-              <div className="notif-item">
-                <div className="notif-icon">🎟️</div>
-                <div>
-                  <div className="notif-text">Your ticket has been confirmed</div>
-                  <div className="notif-time">5 min ago</div>
+
+              {[
+                { icon: '🎬', text: 'New movie added to the catalogue', time: 'Just now'    },
+                { icon: '🎟️', text: 'Your ticket has been confirmed',   time: '5 min ago'  },
+              ].map((n, i) => (
+                <div key={i} className="notif-item">
+                  <div className="notif-icon-wrap">{n.icon}</div>
+                  <div>
+                    <div className="notif-text">{n.text}</div>
+                    <div className="notif-time">{n.time}</div>
+                  </div>
                 </div>
-              </div>
+              ))}
+
+              <div className="notif-view-all">View all notifications</div>
             </div>
           )}
         </div>
 
         {/* Avatar */}
-        <div className="avatar" title={role} style={{ cursor: 'default' }}>
-          {role === 'Admin' ? '👑' :
-           role === 'Cinema Room' ? '🏟️' :
-           role === 'Staff' ? '👤' : '🎬'}
+        <div className="topbar-avatar" title={role}>
+          {roleAvatar}
         </div>
       </div>
     </header>
