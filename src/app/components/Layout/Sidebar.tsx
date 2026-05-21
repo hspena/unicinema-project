@@ -1,8 +1,9 @@
-import React from 'react';
-import { useAuth }  from '../../context/AuthContext';
-import { UserRole } from '../../types';
-import { NAV_CONFIG, ROLE_ICONS, ROLE_DISPLAY_NAMES } from '../../utils/helpers';
-import { SelectField } from '../ui';
+import React, { useEffect, useState } from 'react';
+import { useAuth }       from '../../context/AuthContext';
+import { UserRole, User} from '../../types';
+import { NAV_CONFIG, ROLE_ICONS } from '../../utils/helpers';
+import { SelectField }   from '../ui';
+import { getUserById }   from '../../services/userService';
 
 interface SidebarProps {
   isOpen:  boolean;
@@ -10,13 +11,35 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-  const { role, actualRole, currentView, setView, switchRole, logout } = useAuth();
+  const { role, actualRole, uid, currentView, setView, switchRole, logout } = useAuth();
   const navSections = NAV_CONFIG[role] ?? [];
+
+  const [userProfile, setUserProfile] = useState<{
+    displayName: string;
+    username:    string;
+  } | null>(null);
+
+  // Fetch the logged-in user's real profile from Firebase
+  useEffect(() => {
+    if (!uid) return;
+    getUserById(uid).then(u => {
+      if (!u) return;
+      setUserProfile({
+        displayName: (u as any).displayName || u.name || 'User',
+        username:    (u as any).username    || '',
+      });
+    });
+  }, [uid]);
 
   const handleNav = (view: string) => {
     setView(view);
     onClose();
   };
+
+  // Whether displayName and username are the same — if so, only show one
+  const showUsername =
+    userProfile?.username &&
+    userProfile.username.toLowerCase() !== userProfile.displayName.toLowerCase();
 
   return (
     <aside className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
@@ -28,7 +51,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           <h1>CineHub</h1>
           <p>Universal Ticketing</p>
         </div>
-        {/* Close button — only visible on mobile via CSS */}
         <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">
           ✕
         </button>
@@ -84,8 +106,16 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         <div className="user-chip" onClick={logout} title="Click to log out">
           <div className="avatar">{ROLE_ICONS[role]}</div>
           <div className="user-chip-info">
-            <div className="user-chip-name">{ROLE_DISPLAY_NAMES[role]}</div>
-            <div className="user-chip-role">{role}</div>
+            {/* Display name from Firebase, falls back to role label */}
+            <div className="user-chip-name">
+              {userProfile?.displayName ?? role}
+            </div>
+            {/* Show @username if different from displayName */}
+            {showUsername ? (
+              <div className="user-chip-role">@{userProfile!.username}</div>
+            ) : (
+              <div className="user-chip-role">{role}</div>
+            )}
           </div>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>↩</span>
         </div>

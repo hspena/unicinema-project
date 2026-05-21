@@ -164,7 +164,7 @@ body {
 /* ─── Main Content ──────────────────────────────────────────────────────────── */
 .main-content {
   flex: 1; display: flex; flex-direction: column;
-  overflow: hidden; background: var(--navy-mid);
+  overflow: hidden; background: var(--navy-mid); min-width: 0;
 }
 
 /* ─── Topbar ────────────────────────────────────────────────────────────────── */
@@ -189,7 +189,10 @@ body {
 }
 
 /* ─── Page ──────────────────────────────────────────────────────────────────── */
-.page { flex: 1; overflow-y: auto; padding: 24px; }
+.page-wrapper {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; }
+.page { flex: 1; padding: 24px; }
 .page-header { margin-bottom: 24px; }
 .page-header h2 { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 700; }
 .page-header p  { font-size: 0.84rem; color: var(--text-muted); margin-top: 4px; }
@@ -1338,6 +1341,7 @@ body {
   .page            { padding: 12px; }
   .page-header     { margin-bottom: 14px; }
   .page-header h2  { font-size: 1.2rem; }
+
 
   /* Grids */
   .three-col  { grid-template-columns: 1fr !important; }

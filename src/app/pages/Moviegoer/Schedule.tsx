@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button } from '../../components/ui';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../../services/movieService';
 import { Room, subscribeToRooms } from '../../services/templateService';
-import { Schedule as ScheduleItem, subscribeToAllSchedules, autoStatus, formatDate, todayString } from '../../services/scheduleService';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import {
+  Schedule as ScheduleItem,
+  subscribeToAllSchedules,
+  autoStatus, formatDate, todayString,
+} from '../../services/scheduleService';
 
 const statusConfig = {
   running:   { variant: 'success' as const, label: '🔴 Now Playing' },
@@ -13,43 +15,43 @@ const statusConfig = {
   cancelled: { variant: 'danger'  as const, label: '❌ Cancelled'   },
 };
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
-const Schedule = () => {
+const SchedulePage = () => {
   const [movies,    setMovies]    = useState<Movie[]>([]);
   const [genres,    setGenres]    = useState<Genre[]>([]);
   const [rooms,     setRooms]     = useState<Room[]>([]);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
-  const [dateFilter, setDateFilter] = useState(todayString());
+  const [dateFilter,    setDateFilter]    = useState(todayString());
   const [onlyAvailable, setOnlyAvailable] = useState(false);
 
   useEffect(() => {
     const u1 = subscribeToMovies(setMovies);
     const u2 = subscribeToGenres(setGenres);
-    const u3 = subscribeToRooms(r => setRooms(r.filter(rm => rm.status === 'active')));
+    const u3 = subscribeToRooms(setRooms);           // ← ALL rooms, not just active
     const u4 = subscribeToAllSchedules(setSchedules);
     return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
+  // Fix: use Array.from instead of spread to avoid TS downlevelIteration error
+  const scheduleDates = Array.from(new Set(schedules.map(s => s.date))).sort();
+
   const daySchedules = schedules.filter(s => s.date === dateFilter);
 
-  // Group by room
-  const byRoom = rooms.map(room => {
-    let roomSchedules = daySchedules
-      .filter(s => s.roomId === room.id)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  // Build room groups — only include rooms that have at least one schedule for this date
+  const byRoom = rooms
+    .map(room => {
+      let roomSchedules = daySchedules
+        .filter(s => s.roomId === room.id)
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-    if (onlyAvailable) {
-      roomSchedules = roomSchedules.filter(s =>
-        ['upcoming', 'running'].includes(autoStatus(s.date, s.startTime, s.endTime))
-      );
-    }
+      if (onlyAvailable) {
+        roomSchedules = roomSchedules.filter(s =>
+          ['upcoming', 'running'].includes(autoStatus(s.date, s.startTime, s.endTime))
+        );
+      }
 
-    return { room, schedules: roomSchedules };
-  }).filter(({ schedules }) => schedules.length > 0);
-
-  // Unique dates that have schedules (for date picker hints)
-  const scheduleDates = Array.from(new Set(schedules.map(s => s.date))).sort();
+      return { room, schedules: roomSchedules };
+    })
+    .filter(({ schedules }) => schedules.length > 0); // only rooms with shows
 
   return (
     <div className="page fade-in">
@@ -67,7 +69,9 @@ const Schedule = () => {
         borderRadius: 'var(--radius)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📅 Date:</span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            📅 Date:
+          </span>
           <input
             type="date"
             className="input-field"
@@ -80,8 +84,12 @@ const Schedule = () => {
         {/* Quick date buttons */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {scheduleDates.slice(0, 7).map(d => {
-            const isToday   = d === todayString();
-            const label     = isToday ? 'Today' : new Date(d + 'T00:00:00').toLocaleDateString('en-MY', { weekday: 'short', month: 'short', day: 'numeric' });
+            const isToday = d === todayString();
+            const label   = isToday
+              ? 'Today'
+              : new Date(d + 'T00:00:00').toLocaleDateString('en-MY', {
+                  weekday: 'short', month: 'short', day: 'numeric',
+                });
             return (
               <button
                 key={d}
@@ -94,7 +102,7 @@ const Schedule = () => {
           })}
         </div>
 
-        {/* Available only toggle */}
+        {/* Upcoming only toggle */}
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginLeft: 'auto' }}>
           <input
             type="checkbox"
@@ -102,7 +110,9 @@ const Schedule = () => {
             onChange={e => setOnlyAvailable(e.target.checked)}
             style={{ width: 14, height: 14 }}
           />
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Upcoming only</span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            Upcoming only
+          </span>
         </label>
       </div>
 
@@ -110,18 +120,26 @@ const Schedule = () => {
         {formatDate(dateFilter)}
       </div>
 
-      {/* Schedule by room */}
+      {/* Schedule list */}
       {byRoom.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📅</div>
-          <div className="empty-state-text">No shows found for this date.</div>
+          <div className="empty-state-text">
+            {schedules.length === 0
+              ? 'No schedules have been added yet.'
+              : 'No shows found for this date.'}
+          </div>
         </div>
       ) : (
         byRoom.map(({ room, schedules: roomSchedules }) => (
           <Card
             key={room.id}
             title={room.name}
-            actions={<Badge variant="success">Active</Badge>}
+            actions={
+              <Badge variant={room.status === 'active' ? 'success' : 'muted'}>
+                {room.status}
+              </Badge>
+            }
             style={{ marginBottom: 16 }}
           >
             <div className="card-body">
@@ -130,11 +148,10 @@ const Schedule = () => {
                 const genre  = genres.find(g => g.id === movie?.genreId);
                 const status = autoStatus(s.date, s.startTime, s.endTime);
                 const { variant, label } = statusConfig[status];
-                const canBook = status === 'upcoming';
 
                 return (
                   <div key={s.id} className="schedule-slot">
-                    {/* Movie poster mini */}
+                    {/* Mini poster */}
                     <div style={{
                       width: 44, height: 44, borderRadius: 8, flexShrink: 0,
                       background: movie?.color || genre?.color || '#1a1628',
@@ -173,4 +190,4 @@ const Schedule = () => {
   );
 };
 
-export default Schedule;
+export default SchedulePage;
