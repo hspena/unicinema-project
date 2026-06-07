@@ -71,12 +71,13 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
       items: [
         { icon: '🎬', label: 'Now Showing', view: 'browse'   },
         { icon: '🗓️', label: 'Schedule',    view: 'schedule' },
+        { icon: '🤖', label: 'CineBot',    view: 'cinebot'     },
       ],
     },
     {
       section: 'My Account',
       items: [
-        { icon: '🎟️', label: 'My Tickets', view: 'my-tickets', badge: '2' },
+        { icon: '🎟️', label: 'My Tickets', view: 'my-tickets' },
       ],
     },
   ],

@@ -4,6 +4,7 @@ import { UserRole, User} from '../../types';
 import { NAV_CONFIG, ROLE_ICONS } from '../../utils/helpers';
 import { SelectField }   from '../ui';
 import { getUserById }   from '../../services/userService';
+import { subscribeToUserBookings } from '../../services/bookingService';
 
 interface SidebarProps {
   isOpen:  boolean;
@@ -18,6 +19,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     displayName: string;
     username:    string;
   } | null>(null);
+  const [upcomingTickets, setUpcomingTickets] = useState(0);
 
   // Fetch the logged-in user's real profile from Firebase
   useEffect(() => {
@@ -28,6 +30,17 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         displayName: (u as any).displayName || u.name || 'User',
         username:    (u as any).username    || '',
       });
+    });
+  }, [uid]);
+
+  // Count confirmed bookings whose showtime hasn't happened yet, for the "My Tickets" badge
+  useEffect(() => {
+    if (!uid) return;
+    return subscribeToUserBookings(uid, bookings => {
+      const now = new Date();
+      setUpcomingTickets(bookings.filter(b =>
+        b.status === 'confirmed' && new Date(`${b.showDate}T${b.showTime}`) > now
+      ).length);
     });
   }, [uid]);
 
@@ -77,17 +90,22 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         {navSections.map(section => (
           <div key={section.section}>
             <div className="sidebar-section-label">{section.section}</div>
-            {section.items.map(item => (
-              <div
-                key={item.view}
-                className={`nav-item${currentView === item.view ? ' active' : ''}`}
-                onClick={() => handleNav(item.view)}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                <span>{item.label}</span>
-                {item.badge && <span className="nav-badge">{item.badge}</span>}
-              </div>
-            ))}
+            {section.items.map(item => {
+              const badge = item.view === 'my-tickets'
+                ? (upcomingTickets > 0 ? String(upcomingTickets) : undefined)
+                : item.badge;
+              return (
+                <div
+                  key={item.view}
+                  className={`nav-item${currentView === item.view ? ' active' : ''}`}
+                  onClick={() => handleNav(item.view)}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                  {badge && <span className="nav-badge">{badge}</span>}
+                </div>
+              );
+            })}
           </div>
         ))}
 

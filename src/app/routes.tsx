@@ -23,7 +23,8 @@ import {
 import StaffIndex from './pages/Staff/StaffIndex';
 
 // Moviegoer
-import { Browse, Schedule, MyTickets } from './pages/Moviegoer';
+import { Browse, Schedule, MyTickets} from './pages/Moviegoer';
+import ChatbotPage from './pages/Moviegoer/ChatbotPage';
 
 // Shared
 import Settings  from './pages/Settings';
@@ -54,6 +55,7 @@ const ROUTE_MAP: Record<string, ReactElement> = {
   browse:       <Browse />,
   schedule:     <Schedule />,
   'my-tickets': <MyTickets />,
+  cinebot: <ChatbotPage />,
 
   // Shared
   settings:     <Settings />,

@@ -11,6 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
   'cm-analytics': 'Analytics', 'staff-main': 'Staff Panel',
   browse: 'Now Showing',       schedule: 'Schedule',
   'my-tickets': 'My Tickets',  settings: 'Settings',
+  'cinebot': 'CineBot — Movie Advisor',
 };
 
 interface TopbarProps {

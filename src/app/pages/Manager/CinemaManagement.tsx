@@ -13,13 +13,25 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+type TimeBucket = 'past' | 'today' | 'upcoming';
+
+const getBucketLocal = (date: string, startTime: string, endTime: string): TimeBucket => {
+  const now   = new Date();
+  const today = new Date().toISOString().split('T')[0];
+  if (date < today) return 'past';
+  if (date > today) return 'upcoming';
+  const end = new Date(`${date}T${endTime}:00`);
+  if (now > end) return 'past';
+  return 'today';
+};
+
 const statusBadge = (s: Schedule) => {
   const computed = autoStatus(s.date, s.startTime, s.endTime);
   const map = {
-    running:   { v: 'success' as const, label: '🔴 Running'   },
-    upcoming:  { v: 'info'    as const, label: '⏳ Upcoming'  },
-    completed: { v: 'muted'   as const, label: '✅ Done'      },
-    cancelled: { v: 'danger'  as const, label: '❌ Cancelled' },
+    running:   { v: 'success' as const, label: '🔴 Running'  },
+    upcoming:  { v: 'info'    as const, label: '⏳ Upcoming' },
+    completed: { v: 'muted'   as const, label: '✅ Done'     },
+    cancelled: { v: 'danger'  as const, label: '❌ Cancelled'},
   };
   const { v, label } = map[computed];
   return <Badge variant={v}>{label}</Badge>;
@@ -55,7 +67,6 @@ const ScheduleForm = ({
         <div className="auth-error" style={{ marginBottom: 12 }}>⚠️ {error}</div>
       )}
 
-      {/* Movie preview */}
       {selectedMovie && (
         <div style={{
           padding: '10px 14px', marginBottom: 16,
@@ -101,7 +112,6 @@ const ScheduleForm = ({
         </div>
       </div>
 
-      {/* Free Tickets Toggle */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 14px', background: 'var(--navy)',
@@ -152,8 +162,8 @@ const CinemaManagement = () => {
   const [snacks,    setSnacks]    = useState<Snack[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
 
-  const [tab,        setTab]        = useState<'schedule' | 'snacks'>('schedule');
-  const [dateFilter, setDateFilter] = useState(todayString());
+  const [tab,            setTab]            = useState<'schedule' | 'snacks'>('schedule');
+  const [scheduleBucket, setScheduleBucket] = useState<TimeBucket>('today');
 
   const [showAddSchedule, setShowAddSchedule] = useState(false);
   const [editSchedule,    setEditSchedule]    = useState<Schedule | null>(null);
@@ -178,9 +188,14 @@ const CinemaManagement = () => {
     return subscribeToRoomSchedules(myRoom.id, setSchedules);
   }, [myRoom?.id]);
 
-  const daySchedules = schedules
-    .filter(s => s.date === dateFilter)
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  // ── Bucket-filtered schedules ──────────────────────────────────────────────
+  const filteredSchedules = schedules
+    .filter(s => getBucketLocal(s.date, s.startTime, s.endTime) === scheduleBucket)
+    .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+
+  const pastCount     = schedules.filter(s => getBucketLocal(s.date, s.startTime, s.endTime) === 'past').length;
+  const todayCount    = schedules.filter(s => getBucketLocal(s.date, s.startTime, s.endTime) === 'today').length;
+  const upcomingCount = schedules.filter(s => getBucketLocal(s.date, s.startTime, s.endTime) === 'upcoming').length;
 
   const openAdd = () => {
     if (!myRoom) return;
@@ -203,20 +218,17 @@ const CinemaManagement = () => {
   const handleSave = async () => {
     if (!scheduleForm) return;
     if (!scheduleForm.movieId) { setFormError('Please select a movie.'); return; }
-    if (!scheduleForm.date)    { setFormError('Please select a date.'); return; }
+    if (!scheduleForm.date)    { setFormError('Please select a date.');  return; }
 
-    // ── Clash check ──────────────────────────────────────────────────────────
     const clash = await findClash(
-      scheduleForm.roomId,
-      scheduleForm.date,
-      scheduleForm.startTime,
-      scheduleForm.endTime,
+      scheduleForm.roomId, scheduleForm.date,
+      scheduleForm.startTime, scheduleForm.endTime,
       editSchedule?.id
     );
     if (clash) {
       const clashMovie = movies.find(m => m.id === clash.movieId);
       setFormError(
-        `Time clash with "${clashMovie?.title ?? 'another movie'}" (${clash.startTime}–${clash.endTime}). Please choose a different time.`
+        `Time clash with "${clashMovie?.title ?? 'another movie'}" (${clash.startTime}–${clash.endTime}).`
       );
       return;
     }
@@ -249,7 +261,6 @@ const CinemaManagement = () => {
     await updateRoom(myRoom.id, { status: myRoom.status === 'active' ? 'inactive' : 'active' });
   };
 
-  // ── Snack toggle ───────────────────────────────────────────────────────────
   const handleToggleSnack = async (s: Snack) => {
     await updateSnack(s.id, { available: !s.available });
   };
@@ -296,7 +307,9 @@ const CinemaManagement = () => {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {myTemplate && (
-            <Button variant="outline" size="sm" onClick={() => setShowSeatMap(true)}>🗺️ Seat Map</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowSeatMap(true)}>
+              🗺️ Seat Map
+            </Button>
           )}
           <Button
             variant={myRoom.status === 'active' ? 'danger' : 'primary'}
@@ -323,50 +336,101 @@ const CinemaManagement = () => {
         <Card
           title="Movie Schedule"
           actions={
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input type="date" className="input-field"
-                style={{ padding: '5px 10px', fontSize: '0.78rem', width: 'auto' }}
-                value={dateFilter}
-                onChange={e => setDateFilter(e.target.value)} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { key: 'past',     label: '📁 Past',     count: pastCount     },
+                { key: 'today',    label: '🔴 Today',    count: todayCount    },
+                { key: 'upcoming', label: '⏳ Upcoming', count: upcomingCount },
+              ].map(b => (
+                <button
+                  key={b.key}
+                  onClick={() => setScheduleBucket(b.key as TimeBucket)}
+                  style={{
+                    padding: '5px 12px', borderRadius: 99,
+                    border: `1px solid ${scheduleBucket === b.key ? 'var(--gold)' : 'var(--border)'}`,
+                    background: scheduleBucket === b.key ? 'var(--gold)' : 'transparent',
+                    color: scheduleBucket === b.key ? 'var(--navy)' : 'var(--text-muted)',
+                    fontSize: '0.74rem', fontWeight: scheduleBucket === b.key ? 600 : 400,
+                    cursor: 'pointer', fontFamily: 'var(--font-body)',
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  {b.label}
+                  <span style={{
+                    fontSize: '0.65rem', padding: '0 5px', borderRadius: 99,
+                    background: scheduleBucket === b.key ? 'rgba(0,0,0,0.2)' : 'var(--surface-raised)',
+                    color: scheduleBucket === b.key ? 'var(--navy)' : 'var(--text-muted)',
+                  }}>
+                    {b.count}
+                  </span>
+                </button>
+              ))}
               <Button size="sm" icon="+" onClick={openAdd}>Add Show</Button>
             </div>
           }
         >
           <div className="card-body">
+            {/* Date label */}
             <div style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>
-              {formatDate(dateFilter)}
+              {scheduleBucket === 'today'
+                ? formatDate(todayString())
+                : scheduleBucket === 'upcoming'
+                ? 'Upcoming Shows'
+                : 'Past Shows'}
             </div>
 
-            {daySchedules.length === 0 ? (
+            {filteredSchedules.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: '0.83rem' }}>
-                No shows for this date. Click "Add Show" to schedule one.
+                {scheduleBucket === 'past'
+                  ? 'No past shows.'
+                  : scheduleBucket === 'today'
+                  ? 'No shows for today. Click "Add Show" to schedule one.'
+                  : 'No upcoming shows scheduled.'}
               </div>
             ) : (
-              daySchedules.map(s => {
+              filteredSchedules.map(s => {
                 const movie = movies.find(m => m.id === s.movieId);
                 return (
-                  <div key={s.id} className="schedule-slot">
-                    <div className="schedule-time">{s.startTime}</div>
-                    <div className="schedule-movie" style={{ flex: 1 }}>
-                      <div className="schedule-movie-name">
-                        {movie?.emoji} {movie?.title ?? '—'}
-                        {s.freeTickets && (
-                          <span style={{
-                            marginLeft: 8, fontSize: '0.68rem', padding: '1px 6px',
-                            background: 'var(--gold)', color: 'var(--navy)',
-                            borderRadius: 99, fontWeight: 700,
-                          }}>FREE</span>
-                        )}
+                  <div key={s.id}>
+                    {/* Show date label when viewing past/upcoming (multi-date) */}
+                    {scheduleBucket !== 'today' && (
+                      <div style={{
+                        fontSize: '0.68rem', color: 'var(--text-muted)',
+                        fontWeight: 600, marginTop: 10, marginBottom: 4,
+                        paddingBottom: 4, borderBottom: '1px solid var(--border)',
+                      }}>
+                        {s.date === todayString() ? '📅 Today' : s.date}
                       </div>
-                      <div className="schedule-movie-meta">
-                        {movie?.duration} min · ends {s.endTime}
+                    )}
+                    <div className="schedule-slot" style={{ opacity: scheduleBucket === 'past' ? 0.7 : 1 }}>
+                      <div className="schedule-time">{s.startTime}</div>
+                      <div className="schedule-movie" style={{ flex: 1 }}>
+                        <div className="schedule-movie-name">
+                          {movie?.emoji} {movie?.title ?? '—'}
+                          {s.freeTickets && (
+                            <span style={{
+                              marginLeft: 8, fontSize: '0.68rem', padding: '1px 6px',
+                              background: 'var(--gold)', color: 'var(--navy)',
+                              borderRadius: 99, fontWeight: 700,
+                            }}>FREE</span>
+                          )}
+                        </div>
+                        <div className="schedule-movie-meta">
+                          {movie?.duration} min · ends {s.endTime}
+                        </div>
                       </div>
-                    </div>
-                    {statusBadge(s)}
-                    <div style={{ display: 'flex', gap: 5, marginLeft: 6 }}>
-                      <button className="icon-btn btn-icon" onClick={() => openEdit(s)}>✏️</button>
-                      <button className="icon-btn btn-icon" style={{ color: 'var(--danger)' }}
-                        onClick={() => handleDeleteSchedule(s)}>🗑️</button>
+                      {statusBadge(s)}
+                      {/* Only show edit/delete on non-past shows */}
+                      {scheduleBucket !== 'past' && (
+                        <div style={{ display: 'flex', gap: 5, marginLeft: 6 }}>
+                          <button className="icon-btn btn-icon" onClick={() => openEdit(s)}>✏️</button>
+                          <button
+                            className="icon-btn btn-icon"
+                            style={{ color: 'var(--danger)' }}
+                            onClick={() => handleDeleteSchedule(s)}
+                          >🗑️</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -392,8 +456,7 @@ const CinemaManagement = () => {
                 {snacks.map(s => (
                   <div key={s.id} style={{
                     display: 'flex', alignItems: 'center', gap: 14,
-                    padding: '10px 14px',
-                    background: 'var(--navy)',
+                    padding: '10px 14px', background: 'var(--navy)',
                     border: `1px solid ${s.available ? 'var(--border)' : 'rgba(255,255,255,0.05)'}`,
                     borderRadius: 'var(--radius)',
                     opacity: s.available ? 1 : 0.5,
@@ -406,7 +469,6 @@ const CinemaManagement = () => {
                         RM {s.price.toFixed(2)} · Stock: {s.stock}
                       </div>
                     </div>
-                    {/* Toggle */}
                     <label style={{ position: 'relative', display: 'inline-block', width: 40, height: 22, cursor: 'pointer', flexShrink: 0 }}>
                       <input type="checkbox" checked={s.available}
                         onChange={() => handleToggleSnack(s)}
@@ -435,29 +497,43 @@ const CinemaManagement = () => {
       )}
 
       {/* ── Modals ── */}
-      <Modal title="Add Show" open={showAddSchedule} onClose={() => setShowAddSchedule(false)}
+      <Modal
+        title="Add Show" open={showAddSchedule}
+        onClose={() => setShowAddSchedule(false)}
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAddSchedule(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? '⏳ Saving…' : '🎬 Add Show'}</Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? '⏳ Saving…' : '🎬 Add Show'}
+            </Button>
           </>
         }
       >
-        {scheduleForm && <ScheduleForm form={scheduleForm} setForm={setScheduleForm as any} movies={movies} error={formError} />}
+        {scheduleForm && (
+          <ScheduleForm form={scheduleForm} setForm={setScheduleForm as any} movies={movies} error={formError} />
+        )}
       </Modal>
 
-      <Modal title="Edit Show" open={!!editSchedule} onClose={() => setEditSchedule(null)}
+      <Modal
+        title="Edit Show" open={!!editSchedule}
+        onClose={() => setEditSchedule(null)}
         footer={
           <>
             <Button variant="outline" onClick={() => setEditSchedule(null)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? '⏳ Saving…' : '💾 Save Changes'}</Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? '⏳ Saving…' : '💾 Save Changes'}
+            </Button>
           </>
         }
       >
-        {scheduleForm && <ScheduleForm form={scheduleForm} setForm={setScheduleForm as any} movies={movies} error={formError} />}
+        {scheduleForm && (
+          <ScheduleForm form={scheduleForm} setForm={setScheduleForm as any} movies={movies} error={formError} />
+        )}
       </Modal>
 
-      <Modal title={`Seat Map — ${myRoom.name}`} open={showSeatMap} onClose={() => setShowSeatMap(false)}
+      <Modal
+        title={`Seat Map — ${myRoom.name}`} open={showSeatMap}
+        onClose={() => setShowSeatMap(false)}
         footer={<Button onClick={() => setShowSeatMap(false)}>Close</Button>}
       >
         {myTemplate && <SeatMap template={myTemplate} />}
