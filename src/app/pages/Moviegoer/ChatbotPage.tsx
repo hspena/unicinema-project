@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToMovies, subscribeToGenres, Movie, Genre } from '../../services/movieService';
 import { getUserById } from '../../services/userService';
+import { askCineBot, ChatTurn, GeminiError } from '../../services/geminiService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type MessageRole = 'bot' | 'user';
-type ChatStep    = 'welcome' | 'genre' | 'responding' | 'done';
 
 interface Message {
   id:      number;
@@ -23,7 +23,35 @@ let msgId = 0;
 const newMsg = (role: MessageRole, text: string, extra?: Partial<Message>): Message =>
   ({ id: ++msgId, role, text, ...extra });
 
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+// Builds the system instruction handed to Gemini, including the live catalogue
+// so it can only ever recommend movies that actually exist in our database.
+const buildSystemPrompt = (movies: Movie[], genres: Genre[], userName: string) => {
+  const genreName = (id: string) => genres.find(g => g.id === id)?.name ?? 'Uncategorised';
+
+  const catalogue = movies.length === 0
+    ? '(The catalogue is currently empty — no movies are available to recommend.)'
+    : movies.map(m =>
+        `- "${m.title}" — ${genreName(m.genreId)} · ${m.year} · ${m.duration} min · ${m.rating}/10 — ${m.synopsis || 'No synopsis available.'}`
+      ).join('\n');
+
+  return `You are CineBot, a friendly and knowledgeable AI movie advisor for UniCinema, a university cinema's ticket-booking platform. You're chatting with ${userName || 'a moviegoer'}.
+
+Your job is to have a natural conversation, understand what kind of film the user is in the mood for, and recommend movies — but ONLY from the catalogue below. Never invent or mention a movie that isn't listed.
+
+CATALOGUE:
+${catalogue}
+
+GENRES AVAILABLE: ${genres.map(g => g.name).join(', ') || 'none'}
+
+Guidelines:
+- Be warm, concise (2-4 sentences), and conversational. Light emoji use is fine.
+- When you recommend movies, put their EXACT titles (character-for-character matches from the catalogue) in "movieTitles" so the app can render rich cards with synopsis/rating — don't restate the synopsis in your reply text, just talk about why you picked them.
+- Recommend at most 3 movies at once, and only ones from the catalogue.
+- If nothing in the catalogue fits the request, say so honestly, leave "movieTitles" empty, and suggest trying a different genre or mood.
+- Always include 2-4 short "suggestions" (quick-reply chip labels, each under 30 characters, optionally with a leading emoji) for what the user might want to say next, e.g. "🎭 Different genre", "⭐ Top rated", "🎲 Surprise me".
+- If asked about something unrelated to movies, cinema, or this app, gently steer back to helping them find something to watch.
+- Respond ONLY with a JSON object matching the required schema (reply, movieTitles, suggestions) — no extra commentary.`;
+};
 
 // ─── Stars ────────────────────────────────────────────────────────────────────
 const Stars = ({ rating }: { rating: number }) => {
@@ -93,14 +121,12 @@ const ChatbotPage = () => {
   const [movies,      setMovies]      = useState<Movie[]>([]);
   const [genres,      setGenres]      = useState<Genre[]>([]);
   const [userInput,   setUserInput]   = useState('');
-  const [step,        setStep]        = useState<ChatStep>('welcome');
-  const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
-  const [userPrefs,   setUserPrefs]   = useState('');   // free-text preference
   const [userName,    setUserName]    = useState('');
   const [isTyping,    setIsTyping]    = useState(false);
   const [inputLocked, setInputLocked] = useState(false);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const bottomRef   = useRef<HTMLDivElement>(null);
+  const historyRef  = useRef<ChatTurn[]>([]);     // running conversation sent to Gemini
 
   useEffect(() => {
     const u1 = subscribeToMovies(setMovies);
@@ -118,250 +144,66 @@ const ChatbotPage = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // Show welcome message after profile loads
+  // Show welcome message once the user's profile has loaded
   useEffect(() => {
     if (messages.length > 0) return; // already started
     const name = userName || 'there';
-    const welcome: Message = newMsg('bot',
-      `Hey ${name}! 👋 I'm CineBot, your personal movie advisor.\n\nI can help you find the perfect film to watch. What would you like to do?`,
-      {
-        chips: [
-          '🎬 Recommend me a movie',
-          '🎭 Browse by genre',
-          '⭐ Show me top rated',
-          '🎲 Surprise me!',
-        ],
-      }
-    );
-    setMessages([welcome]);
+    const text =
+      `Hey ${name}! 👋 I'm CineBot, your AI-powered movie advisor. Tell me what you're in the mood for — a genre, a vibe, an actor — and I'll find something from our catalogue for you. Or just pick an option below to get started!`;
+    const chips = ['🎬 Recommend me a movie', '🎭 Browse by genre', '⭐ Show me top rated', '🎲 Surprise me!'];
+    setMessages([newMsg('bot', text, { chips })]);
+    historyRef.current = [{ role: 'model', text }];
   }, [userName]);
-
-  // ── Bot typing simulation ──────────────────────────────────────────────────
-  const botSay = async (text: string, extra?: Partial<Message>, delayMs = 900) => {
-    setIsTyping(true);
-    await delay(delayMs);
-    setIsTyping(false);
-    setMessages(prev => [...prev, newMsg('bot', text, extra)]);
-  };
 
   // ── User sends a message ───────────────────────────────────────────────────
   const userSay = (text: string) => {
     setMessages(prev => [...prev, newMsg('user', text)]);
   };
 
-  // ── Handle quick-reply chip click ──────────────────────────────────────────
-  const handleChip = async (chip: string) => {
-    if (inputLocked) return;
-    setInputLocked(true);
-    userSay(chip);
+  // ── Send a message to Gemini and render whatever it comes back with ────────
+  const sendToBot = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || inputLocked) return;
 
-    if (step === 'welcome') {
-      if (chip === '🎲 Surprise me!') {
-        await handleSurpriseMe();
-      } else if (chip === '⭐ Show me top rated') {
-        await handleTopRated();
-      } else {
-        // Ask for genre
-        setStep('genre');
-        await botSay(
-          "Great choice! Which genre are you in the mood for?",
-          {
-            chips: genres.map(g => `${g.emoji || '🎬'} ${g.name}`).concat(['🎲 Any genre']),
-          }
-        );
-      }
-    } else if (step === 'genre') {
-      if (chip === '🎲 Any genre') {
-        setSelectedGenre(null);
-        await handleRecommend(null, userPrefs);
-      } else {
-        const genreName = chip.replace(/^[^\w]+/, '').trim(); // strip emoji prefix
-        const found     = genres.find(g => g.name.toLowerCase() === genreName.toLowerCase());
-        setSelectedGenre(found ?? null);
-        await handleRecommend(found ?? null, userPrefs);
-      }
+    setInputLocked(true);
+    userSay(trimmed);
+    historyRef.current = [...historyRef.current, { role: 'user', text: trimmed }];
+    setIsTyping(true);
+
+    try {
+      const systemPrompt = buildSystemPrompt(movies, genres, userName);
+      const result = await askCineBot(systemPrompt, historyRef.current);
+
+      const cards = result.movieTitles
+        .map(title => movies.find(m => m.title.toLowerCase() === title.toLowerCase()))
+        .filter((m): m is Movie => !!m)
+        .slice(0, 3);
+
+      setIsTyping(false);
+      setMessages(prev => [...prev, newMsg('bot', result.reply, {
+        movies: cards.length ? cards : undefined,
+        chips:  result.suggestions.length ? result.suggestions : undefined,
+      })]);
+      historyRef.current = [...historyRef.current, { role: 'model', text: result.reply }];
+    } catch (err) {
+      setIsTyping(false);
+      const message = err instanceof GeminiError
+        ? err.message
+        : "I'm having trouble connecting right now — please try again in a moment.";
+      setMessages(prev => [...prev, newMsg('bot', `😅 ${message}`)]);
     }
 
     setInputLocked(false);
   };
+
+  // ── Handle quick-reply chip click ──────────────────────────────────────────
+  const handleChip = (chip: string) => sendToBot(chip);
 
   // ── Handle free-text input ─────────────────────────────────────────────────
-  const handleSend = async () => {
-    const text = userInput.trim();
-    if (!text || inputLocked) return;
+  const handleSend = () => {
+    const text = userInput;
     setUserInput('');
-    setInputLocked(true);
-    userSay(text);
-
-    if (step === 'welcome') {
-      // Treat free text as preference description
-      setUserPrefs(text);
-      setStep('genre');
-      await botSay(
-        `Got it — "${text}". Which genre fits your mood best?`,
-        { chips: genres.map(g => `${g.emoji || '🎬'} ${g.name}`).concat(['🎲 Any genre']) }
-      );
-    } else if (step === 'genre') {
-      // Try to match a genre name from text
-      const found = genres.find(g => text.toLowerCase().includes(g.name.toLowerCase()));
-      setSelectedGenre(found ?? null);
-      await handleRecommend(found ?? null, userPrefs || text);
-    } else if (step === 'done') {
-      // Free chat after recommendation
-      await handleFollowUp(text);
-    }
-
-    setInputLocked(false);
-  };
-
-  // ── Recommend movies based on genre + prefs ────────────────────────────────
-  const handleRecommend = async (genre: Genre | null, prefs: string) => {
-    setStep('responding');
-
-    const genreMsg = genre ? `in the **${genre.name}** genre` : 'across all genres';
-    await botSay(
-      `Perfect! Let me find some great ${genre ? genre.name : ''} films for you…`,
-      undefined, 600
-    );
-
-    // Filter movies by genre, sort by rating
-    let candidates = genre
-      ? movies.filter(m => m.genreId === genre.id)
-      : [...movies];
-
-    // If prefs mention keywords, try to match synopsis/title
-    if (prefs) {
-      const keywords = prefs.toLowerCase().split(/\s+/);
-      const scored   = candidates.map(m => ({
-        movie: m,
-        score: keywords.reduce((s, kw) =>
-          s + (m.title.toLowerCase().includes(kw) ? 2 : 0)
-            + (m.synopsis?.toLowerCase().includes(kw) ? 1 : 0), 0)
-      }));
-      scored.sort((a, b) => b.score - a.score || b.movie.rating - a.movie.rating);
-      candidates = scored.map(s => s.movie);
-    } else {
-      candidates.sort((a, b) => b.rating - a.rating);
-    }
-
-    const picks = candidates.slice(0, 3);
-
-    if (picks.length === 0) {
-      await botSay(
-        `Hmm, I couldn't find any ${genre?.name ?? ''} movies in our catalogue right now. Try a different genre?`,
-        { chips: genres.map(g => `${g.emoji || '🎬'} ${g.name}`).concat(['🎲 Any genre']) }
-      );
-      setStep('genre');
-      return;
-    }
-
-    await botSay(
-      `Here are my top picks ${genreMsg} for you! 🎬`,
-      { movies: picks },
-      800
-    );
-
-    setStep('done');
-    await botSay(
-      "What do you think? Would you like recommendations in a different genre, or can I help with anything else?",
-      {
-        chips: [
-          '🔄 Different genre',
-          '⭐ Show top rated',
-          '🎲 Surprise me!',
-          '🎬 Browse all movies',
-        ],
-      },
-      600
-    );
-  };
-
-  // ── Top rated ─────────────────────────────────────────────────────────────
-  const handleTopRated = async () => {
-    setStep('responding');
-    await botSay("Here are the highest rated films in our catalogue! ⭐", undefined, 700);
-    const top = [...movies].sort((a, b) => b.rating - a.rating).slice(0, 3);
-    if (top.length === 0) {
-      await botSay("No movies in our catalogue yet. Check back soon!");
-    } else {
-      await botSay("Our top picks:", { movies: top }, 500);
-    }
-    setStep('done');
-    await botSay(
-      "Want to explore a specific genre or see more recommendations?",
-      { chips: ['🎭 Browse by genre', '🔄 Try again', '🎲 Surprise me!'] },
-      600
-    );
-  };
-
-  // ── Surprise me ────────────────────────────────────────────────────────────
-  const handleSurpriseMe = async () => {
-    setStep('responding');
-    await botSay("Ooh, I love spontaneity! 🎲 Picking something random for you…", undefined, 700);
-    if (movies.length === 0) {
-      await botSay("No movies in our catalogue yet. Check back soon!");
-      setStep('done'); return;
-    }
-    const random = [...movies].sort(() => Math.random() - 0.5).slice(0, 1);
-    await botSay("How about this one?", { movies: random }, 800);
-    setStep('done');
-    await botSay(
-      "Like it? Or shall I pick another?",
-      { chips: ['🎲 Pick another!', '🎭 Browse by genre', '⭐ Show top rated'] },
-      500
-    );
-  };
-
-  // ── Follow-up after recommendation ────────────────────────────────────────
-  const handleFollowUp = async (text: string) => {
-    const lower = text.toLowerCase();
-    if (lower.includes('another') || lower.includes('more') || lower.includes('different')) {
-      await handleSurpriseMe();
-    } else if (lower.includes('genre') || lower.includes('type')) {
-      setStep('genre');
-      await botSay(
-        "Which genre are you feeling?",
-        { chips: genres.map(g => `${g.emoji || '🎬'} ${g.name}`).concat(['🎲 Any genre']) }
-      );
-    } else if (lower.includes('top') || lower.includes('best') || lower.includes('rated')) {
-      await handleTopRated();
-    } else {
-      setStep('genre');
-      await botSay(
-        "I'd love to help! Let me know which genre you're interested in:",
-        { chips: genres.map(g => `${g.emoji || '🎬'} ${g.name}`).concat(['🎲 Any genre']) }
-      );
-    }
-  };
-
-  // ── Handle post-done chips ─────────────────────────────────────────────────
-  const handleDoneChip = async (chip: string) => {
-    if (inputLocked) return;
-    setInputLocked(true);
-    userSay(chip);
-
-    if (chip.includes('genre') || chip.includes('Genre')) {
-      setStep('genre');
-      await botSay(
-        "Which genre suits your mood?",
-        { chips: genres.map(g => `${g.emoji || '🎬'} ${g.name}`).concat(['🎲 Any genre']) }
-      );
-    } else if (chip.includes('Surprise') || chip.includes('another')) {
-      await handleSurpriseMe();
-    } else if (chip.includes('top rated') || chip.includes('Top rated')) {
-      await handleTopRated();
-    } else if (chip.includes('Browse all')) {
-      await botSay("Head to the **Now Showing** page to browse all available movies and book your tickets! 🎟️");
-      setStep('done');
-    } else if (chip.includes('Try again')) {
-      setStep('welcome');
-      await botSay(
-        "Sure! What would you like to do?",
-        { chips: ['🎬 Recommend me a movie', '🎭 Browse by genre', '⭐ Show me top rated', '🎲 Surprise me!'] }
-      );
-    }
-
-    setInputLocked(false);
+    return sendToBot(text);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -459,11 +301,7 @@ const ChatbotPage = () => {
                   {msg.chips.map(chip => (
                     <button
                       key={chip}
-                      onClick={() =>
-                        step === 'done'
-                          ? handleDoneChip(chip)
-                          : handleChip(chip)
-                      }
+                      onClick={() => handleChip(chip)}
                       disabled={inputLocked}
                       style={{
                         padding: '6px 13px',
