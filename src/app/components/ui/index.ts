@@ -7,4 +7,6 @@ export { default as StatCard }  from './StatCard';
 export { default as BarChart }  from './BarChart';
 export { default as SeatMap }   from './SeatMap';
 export { default as IconPicker } from './IconPicker';
+export { default as QrCodeView } from './QrCodeView';
+export { default as QrScanner }  from './QrScanner';
 export { InputField, SelectField } from './FormFields';

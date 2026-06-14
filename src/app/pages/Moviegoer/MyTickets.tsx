@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Badge, Button, Modal } from '../../components/ui';
+import { Badge, Button, Modal, QrCodeView } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { Booking, subscribeToUserBookings, cancelBooking } from '../../services/bookingService';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../../services/movieService';
@@ -10,7 +10,7 @@ import {
 import { getUserById } from '../../services/userService';
 import {
   IconGlyph, Hourglass, CheckCircle2, XCircle, Save, Send, Star,
-  AlertTriangle, Ticket, Pencil,
+  AlertTriangle, Ticket, Pencil, QrCode,
 } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -220,6 +220,7 @@ const MyTickets = () => {
   const [reviewBooking,setReviewBooking]= useState<Booking | null>(null);
   const [showReview,   setShowReview]   = useState(false);
   const [myReviews,    setMyReviews]    = useState<Record<string, Review>>({});
+  const [qrBooking,    setQrBooking]    = useState<Booking | null>(null);
 
   useEffect(() => {
     const u1 = subscribeToMovies(setMovies);
@@ -399,6 +400,16 @@ const MyTickets = () => {
                     </Button>
                   )}
                   {b.status === 'confirmed' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<QrCode size={13} />}
+                      onClick={() => setQrBooking(b)}
+                    >
+                      Show QR
+                    </Button>
+                  )}
+                  {b.status === 'confirmed' && (
                     <Button size="sm" variant="danger" onClick={() => handleCancel(b)}>
                       Cancel Booking
                     </Button>
@@ -428,6 +439,39 @@ const MyTickets = () => {
           );
         })
       )}
+
+      {/* QR check-in modal */}
+      <Modal
+        title="Check-In QR Code"
+        open={!!qrBooking}
+        onClose={() => setQrBooking(null)}
+        footer={<Button variant="outline" onClick={() => setQrBooking(null)}>Close</Button>}
+      >
+        {qrBooking && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: 2 }}>
+              {qrBooking.movieTitle}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+              {qrBooking.showDate} · {qrBooking.showTime} · {qrBooking.seats.length} seat(s)
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+              <QrCodeView value={qrBooking.ticketCode} size={200} />
+            </div>
+
+            <div style={{
+              fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700,
+              color: 'var(--gold)', letterSpacing: '0.08em', marginBottom: 6,
+            }}>
+              {qrBooking.ticketCode}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Show this code at the entrance. Staff will scan it to check you in.
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Review modal */}
       <ReviewModal

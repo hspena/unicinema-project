@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Badge, Button } from '../../components/ui';
+import { Card, Badge, Button, Modal, QrScanner } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import SeatMap from '../../components/ui/SeatMap';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
@@ -9,7 +9,7 @@ import { Booking, checkInBooking, findBookingByCode, getBookedSeats } from '../.
 import WalkupBooking from '../../components/WalkupBooking';
 import {
   IconGlyph, Calendar, X, Building2, Ticket, Hourglass, Check,
-  CheckCircle2, CircleDot, XCircle, Maximize,
+  CheckCircle2, CircleDot, XCircle, Maximize, ScanLine,
 } from '../../utils/icons';
 
 
@@ -256,6 +256,7 @@ const StaffIndex = () => {
   const [ticketCode,  setTicketCode]  = useState('');
   const [scanResult,  setScanResult]  = useState<{ ok: boolean; message: string } | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   // Fullscreen
   const [showFullscreen, setShowFullscreen] = useState(false);
@@ -298,14 +299,15 @@ const StaffIndex = () => {
     }
   };
 
-  const handleCheckIn = async () => {
-    if (!ticketCode.trim()) return;
+  const handleCheckIn = async (rawCode?: string) => {
+    const code = (rawCode ?? ticketCode).trim();
+    if (!code) return;
     setScanLoading(true);
     setScanResult(null);
     try {
-      const booking = await findBookingByCode(ticketCode.trim());
+      const booking = await findBookingByCode(code);
       if (!booking) {
-        setScanResult({ ok: false, message: `No ticket found for "${ticketCode.toUpperCase()}".` });
+        setScanResult({ ok: false, message: `No ticket found for "${code.toUpperCase()}".` });
       } else if (booking.roomId !== activeRoom?.id) {
         setScanResult({ ok: false, message: 'This ticket is for a different room.' });
       } else if (booking.status === 'checked-in') {
@@ -324,6 +326,12 @@ const StaffIndex = () => {
     } finally {
       setScanLoading(false);
     }
+  };
+
+  const handleQrScanned = (text: string) => {
+    setShowScanner(false);
+    setTicketCode(text.toUpperCase());
+    handleCheckIn(text);
   };
 
   if (!activeRoom) {
@@ -347,6 +355,20 @@ const StaffIndex = () => {
           onClose={() => setShowFullscreen(false)}
         />
       )}
+
+      {/* QR Scanner Modal */}
+      <Modal
+        title="Scan Ticket QR"
+        open={showScanner}
+        onClose={() => setShowScanner(false)}
+        footer={<Button variant="outline" onClick={() => setShowScanner(false)}>Cancel</Button>}
+      >
+        <QrScanner
+          active={showScanner}
+          onScan={handleQrScanned}
+          onError={msg => { setShowScanner(false); setScanResult({ ok: false, message: msg }); }}
+        />
+      </Modal>
 
       <div className="page-header">
         <h2>Staff Panel — {activeRoom.name}</h2>
@@ -453,10 +475,18 @@ const StaffIndex = () => {
                   onKeyDown={e => e.key === 'Enter' && handleCheckIn()}
                 />
               </div>
-              <Button onClick={handleCheckIn} disabled={scanLoading} icon={scanLoading ? <Hourglass size={14} /> : <Check size={14} />}>
+              <Button onClick={() => handleCheckIn()} disabled={scanLoading} icon={scanLoading ? <Hourglass size={14} /> : <Check size={14} />}>
                 {scanLoading ? '' : 'Verify'}
               </Button>
             </div>
+
+            <button
+              className="btn btn-outline"
+              style={{ width: '100%', justifyContent: 'center', marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              onClick={() => { setScanResult(null); setShowScanner(true); }}
+            >
+              <ScanLine size={14} /> Scan Ticket QR
+            </button>
 
             {scanResult && (
               <div style={{

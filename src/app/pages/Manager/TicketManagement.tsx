@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button, Modal } from '../../components/ui';
+import { Card, Badge, Button, Modal, QrScanner } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToRooms, subscribeToTemplates, Room } from '../../services/templateService';
 import { Movie, subscribeToMovies } from '../../services/movieService';
@@ -8,7 +8,7 @@ import {
   Booking, subscribeToRoomBookings,
   checkInBooking, cancelBooking, findBookingByCode,
 } from '../../services/bookingService';
-import { CheckCircle2, Ticket, Hourglass, XCircle, Search, Check } from '../../utils/icons';
+import { CheckCircle2, Ticket, Hourglass, XCircle, Search, Check, ScanLine } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +36,7 @@ const TicketManagement = () => {
   const [ticketCode,    setTicketCode]    = useState('');
   const [scanResult,    setScanResult]    = useState<{ ok: boolean; message: string; booking?: Booking } | null>(null);
   const [scanLoading,   setScanLoading]   = useState(false);
+  const [showScanner,   setShowScanner]   = useState(false);
 
   // Filters
   const [scheduleFilter, setScheduleFilter] = useState<string>('All');
@@ -79,15 +80,16 @@ const TicketManagement = () => {
     return matchSchedule && matchStatus && matchSearch;
   }).sort((a, b) => new Date(b.bookedAt).getTime() - new Date(a.bookedAt).getTime());
 
-  // ── Ticket code check-in ───────────────────────────────────────────────────
-  const handleScanCheckIn = async () => {
-    if (!ticketCode.trim()) return;
+  // ── Ticket code check-in (shared by typed code and scanned QR) ──────────────
+  const handleScanCheckIn = async (rawCode?: string) => {
+    const code = (rawCode ?? ticketCode).trim();
+    if (!code) return;
     setScanLoading(true);
     setScanResult(null);
     try {
-      const booking = await findBookingByCode(ticketCode.trim());
+      const booking = await findBookingByCode(code);
       if (!booking) {
-        setScanResult({ ok: false, message: `No ticket found with code "${ticketCode.toUpperCase()}".` });
+        setScanResult({ ok: false, message: `No ticket found with code "${code.toUpperCase()}".` });
       } else if (booking.roomId !== myRoom?.id) {
         setScanResult({ ok: false, message: 'This ticket is for a different cinema room.' });
       } else if (booking.status === 'checked-in') {
@@ -102,6 +104,13 @@ const TicketManagement = () => {
     } finally {
       setScanLoading(false);
     }
+  };
+
+  // ── QR scan → check-in ───────────────────────────────────────────────────────
+  const handleQrScanned = (text: string) => {
+    setShowScanner(false);
+    setTicketCode(text.toUpperCase());
+    handleScanCheckIn(text);
   };
 
   const handleCheckIn = async (b: Booking) => {
@@ -165,7 +174,10 @@ const TicketManagement = () => {
                 onKeyDown={e => e.key === 'Enter' && handleScanCheckIn()}
               />
             </div>
-            <Button onClick={handleScanCheckIn} disabled={scanLoading} icon={scanLoading ? <Hourglass size={14} /> : <Check size={14} />}>
+            <Button variant="outline" onClick={() => { setScanResult(null); setShowScanner(true); }} icon={<ScanLine size={14} />}>
+              Scan QR
+            </Button>
+            <Button onClick={() => handleScanCheckIn()} disabled={scanLoading} icon={scanLoading ? <Hourglass size={14} /> : <Check size={14} />}>
               {scanLoading ? '' : 'Check In'}
             </Button>
           </div>
@@ -292,6 +304,20 @@ const TicketManagement = () => {
           </div>
         ))
       )}
+
+      {/* ── QR Scanner Modal ── */}
+      <Modal
+        title="Scan Ticket QR"
+        open={showScanner}
+        onClose={() => setShowScanner(false)}
+        footer={<Button variant="outline" onClick={() => setShowScanner(false)}>Cancel</Button>}
+      >
+        <QrScanner
+          active={showScanner}
+          onScan={handleQrScanned}
+          onError={msg => { setShowScanner(false); setScanResult({ ok: false, message: msg }); }}
+        />
+      </Modal>
 
       {/* ── Detail Modal ── */}
       <Modal
