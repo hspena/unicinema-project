@@ -450,16 +450,6 @@ body {
 .empty-state-text   { font-size: 0.88rem; }
 .font-heading { font-family: var(--font-heading); }
 
-/* ─── Responsive Sidebar ────────────────────────────────────────────────────── */
-@media (max-width: 700px) {
-  .sidebar { width: 64px; }
-  .sidebar-brand h1, .sidebar-brand p, .nav-item span,
-  .sidebar-role-switcher, .user-chip-info,
-  .sidebar-section-label, .nav-badge { display: none; }
-  .nav-item { padding: 11px; justify-content: center; }
-  .nav-item .nav-icon { width: auto; }
-}
-
 /* Login tabs */
 .login-tabs {
   display: flex;
@@ -1085,9 +1075,6 @@ body {
   padding: 0 20px;
   gap: 12px;
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  z-index: 50;
 }
 
 .topbar-left {
@@ -1331,10 +1318,17 @@ body {
   /* Main content: full width */
   .main-content { margin-left: 0 !important; width: 100% !important; }
 
-  /* Notification dropdown: keep it on screen */
+  /* Notification dropdown: anchor to the viewport instead of the bell icon —
+     the trigger sits well inside the right edge (profile/role icon to its
+     right), so anchoring via `right` relative to it pushes a wide dropdown
+     off the LEFT edge of the screen. Fixed positioning relative to the
+     viewport keeps it fully on-screen regardless of where the trigger sits. */
   .notif-dropdown {
-    right: -8px;
-    width: min(290px, calc(100vw - 24px));
+    position: fixed;
+    top: 66px;
+    left: 12px;
+    right: 12px;
+    width: auto;
   }
 
   /* Page */
@@ -1427,7 +1421,9 @@ body {
   .page        { padding: 8px; }
   .stats-grid  { grid-template-columns: 1fr 1fr !important; }
   .sm-seat     { width: 16px !important; height: 15px !important; font-size: 0.42rem !important; }
-  .notif-dropdown { width: calc(100vw - 16px); right: -4px; }
+  /* .notif-dropdown is handled by the ≤768px rule (fixed, viewport-anchored);
+     no further override needed here — re-introducing right/width here would
+     reopen the left-edge overflow this block previously caused. */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

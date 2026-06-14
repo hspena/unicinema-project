@@ -12,6 +12,7 @@ import { Schedule }                 from '../../services/scheduleService';
 import { Booking }                  from '../../services/bookingService';
 import { onValue, ref, off }        from 'firebase/database';
 import { db }                       from '../../config/firebase';
+import { Star, Building2, Ticket, Users, DollarSign } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ const Stars = ({ rating }: { rating: number }) => (
 );
 
 const StatCard = ({ icon, value, label, sub, color }: {
-  icon: string; value: string | number; label: string; sub?: string; color?: string;
+  icon: React.ReactNode; value: string | number; label: string; sub?: string; color?: string;
 }) => (
   <div className="stat-card">
     <div className="stat-card-icon">{icon}</div>
@@ -227,17 +228,17 @@ const AdminDashboard = () => {
           <h2>Dashboard Overview</h2>
           <p>Here's what's happening across all cinemas today.</p>
         </div>
-        <Button onClick={() => setShowReviews(true)}>
-          ⭐ View All Reviews
+        <Button onClick={() => setShowReviews(true)} icon={<Star size={14} />}>
+          View All Reviews
         </Button>
       </div>
 
       {/* Stats */}
       <div className="stats-grid">
-        <StatCard icon="🎬" value={activeRooms}          label="Active Rooms"   sub={`${rooms.length} total`} />
-        <StatCard icon="🎟️" value={ticketsSold}          label="Tickets Sold"   sub={`${todayBookings.length} today`} />
-        <StatCard icon="👥" value={totalUsers}            label="Total Users"    sub={`${moviegoers} moviegoers`} />
-        <StatCard icon="💰" value={`RM ${revenue.toFixed(0)}`} label="Total Revenue" sub={`RM ${todayRevenue.toFixed(0)} today`} color="var(--gold)" />
+        <StatCard icon={<Building2 size={20} />} value={activeRooms}          label="Active Rooms"   sub={`${rooms.length} total`} />
+        <StatCard icon={<Ticket size={20} />}     value={ticketsSold}          label="Tickets Sold"   sub={`${todayBookings.length} today`} />
+        <StatCard icon={<Users size={20} />}      value={totalUsers}            label="Total Users"    sub={`${moviegoers} moviegoers`} />
+        <StatCard icon={<DollarSign size={20} />} value={`RM ${revenue.toFixed(0)}`} label="Total Revenue" sub={`RM ${todayRevenue.toFixed(0)} today`} color="var(--gold)" />
       </div>
 
       <div className="two-col">
@@ -373,7 +374,7 @@ const AdminDashboard = () => {
 
       {/* Reviews Modal */}
       <Modal
-        title="⭐ Moviegoer Reviews"
+        title={<><Star size={16} style={{ verticalAlign: -3, marginRight: 6 }} /> Moviegoer Reviews</>}
         open={showReviews}
         onClose={() => setShowReviews(false)}
         footer={<Button onClick={() => setShowReviews(false)}>Close</Button>}

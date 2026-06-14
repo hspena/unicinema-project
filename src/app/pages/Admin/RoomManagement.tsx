@@ -12,6 +12,10 @@ import {
   isUsernameAvailable,
 } from '../../services/userService';
 import { User } from '../../types';
+import {
+  Folder, Building2, AlertTriangle, CheckCircle2, Check, X, Hourglass,
+  ArrowLeft, ArrowRight, RefreshCw,
+} from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -148,10 +152,10 @@ const RoomManagement = () => {
       {/* Tabs */}
       <div className="rm-tabs" style={{ marginBottom: 20 }}>
         <button className={`rm-tab ${tab === 'templates' ? 'active' : ''}`} onClick={() => setTab('templates')}>
-          🗂️ Seat Templates ({templates.length})
+          <Folder size={14} style={{ verticalAlign: -2, marginRight: 5 }} /> Seat Templates ({templates.length})
         </button>
         <button className={`rm-tab ${tab === 'rooms' ? 'active' : ''}`} onClick={() => setTab('rooms')}>
-          🏟️ Cinema Rooms ({rooms.length})
+          <Building2 size={14} style={{ verticalAlign: -2, marginRight: 5 }} /> Cinema Rooms ({rooms.length})
         </button>
       </div>
 
@@ -177,7 +181,7 @@ const RoomManagement = () => {
               </div>
               {templates.length === 0 ? (
                 <div className="empty-state">
-                  <div className="empty-state-icon">🗂️</div>
+                  <div className="empty-state-icon"><Folder size={32} /></div>
                   <div className="empty-state-text">No templates yet.</div>
                 </div>
               ) : (
@@ -209,7 +213,7 @@ const RoomManagement = () => {
           </div>
           {rooms.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">🏟️</div>
+              <div className="empty-state-icon"><Building2 size={32} /></div>
               <div className="empty-state-text">No rooms yet.</div>
             </div>
           ) : (
@@ -253,7 +257,7 @@ const RoomManagement = () => {
 
       {/* ── Add Room Modal ── */}
       <Modal
-        title={createdInfo ? '✅ Room Created!' : step === 1 ? 'Step 1 — Room Info' : 'Step 2 — Manager Account'}
+        title={createdInfo ? <><CheckCircle2 size={16} style={{ verticalAlign: -3, marginRight: 6 }} /> Room Created!</> : step === 1 ? 'Step 1 — Room Info' : 'Step 2 — Manager Account'}
         open={showAddRoom}
         onClose={() => { resetAddRoom(); setShowAddRoom(false); }}
         footer={
@@ -269,14 +273,14 @@ const RoomManagement = () => {
                   setFormError(''); setStep(2);
                 }}
               >
-                Next →
+                Next <ArrowRight size={14} style={{ verticalAlign: -2, marginLeft: 4 }} />
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
-              <Button onClick={handleCreate} disabled={isCreating}>
-                {isCreating ? '⏳ Creating…' : '🏟️ Create Room & Manager'}
+              <Button variant="outline" onClick={() => setStep(1)} icon={<ArrowLeft size={14} />}>Back</Button>
+              <Button onClick={handleCreate} disabled={isCreating} icon={isCreating ? <Hourglass size={14} /> : <Building2 size={14} />}>
+                {isCreating ? 'Creating…' : 'Create Room & Manager'}
               </Button>
             </>
           )
@@ -286,7 +290,7 @@ const RoomManagement = () => {
           /* ── Success screen ── */
           <div>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: '3rem', marginBottom: 8 }}>🏟️</div>
+              <div style={{ marginBottom: 8, color: 'var(--gold)', display: 'flex', justifyContent: 'center' }}><Building2 size={48} /></div>
               <div style={{ fontWeight: 600, fontSize: '1rem' }}>{createdInfo.roomName}</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
                 Room created and manager account set up.
@@ -296,8 +300,8 @@ const RoomManagement = () => {
               padding: 14, background: 'var(--navy)', borderRadius: 'var(--radius)',
               border: '1px solid var(--gold)', marginBottom: 12,
             }}>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: 8 }}>
-                ⚠️ Share these credentials with the manager. They should change the password after first login.
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={13} /> Share these credentials with the manager. They should change the password after first login.
               </div>
               <div style={{ fontSize: '0.85rem' }}>
                 <div><span style={{ color: 'var(--text-muted)' }}>Email: </span><strong style={{ color: 'var(--gold)' }}>{createdInfo.email}</strong></div>
@@ -308,7 +312,7 @@ const RoomManagement = () => {
         ) : step === 1 ? (
           /* ── Step 1 ── */
           <>
-            {formError && <div className="auth-error" style={{ marginBottom: 12 }}>⚠️ {formError}</div>}
+            {formError && <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {formError}</div>}
             <div className="input-group">
               <label className="input-label">Room Name *</label>
               <input className="input-field" placeholder="e.g. Galaxy Hall" value={roomName}
@@ -328,13 +332,13 @@ const RoomManagement = () => {
               borderRadius: 'var(--radius)', border: '1px solid var(--border)',
               fontSize: '0.78rem', color: 'var(--text-muted)',
             }}>
-              🏟️ In the next step, you'll create a Cinema Room Manager account for this room.
+              <Building2 size={13} style={{ verticalAlign: -2, marginRight: 4 }} /> In the next step, you'll create a Cinema Room Manager account for this room.
             </div>
           </>
         ) : (
           /* ── Step 2 ── */
           <>
-            {formError && <div className="auth-error" style={{ marginBottom: 12 }}>⚠️ {formError}</div>}
+            {formError && <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {formError}</div>}
 
             <div className="input-group">
               <label className="input-label">Manager's Full Name *</label>
@@ -345,8 +349,8 @@ const RoomManagement = () => {
             <div className="input-group">
               <label className="input-label">
                 Username *
-                {usernameStatus === 'available' && <span style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--success)' }}>✓ Available</span>}
-                {usernameStatus === 'taken'     && <span style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--danger)' }}>✗ Taken</span>}
+                {usernameStatus === 'available' && <span style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={12} /> Available</span>}
+                {usernameStatus === 'taken'     && <span style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><X size={12} /> Taken</span>}
               </label>
               <input className="input-field" placeholder="e.g. galaxyhall_mgr"
                 value={mgrUsername} onChange={e => handleUsernameChange(e.target.value)} />
@@ -368,10 +372,10 @@ const RoomManagement = () => {
               <label className="input-label">
                 Temporary Password *
                 <span
-                  style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--gold)', cursor: 'pointer' }}
+                  style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--gold)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                   onClick={() => { const pw = generateTempPassword(); setMgrPassword(pw); }}
                 >
-                  🔄 Regenerate
+                  <RefreshCw size={12} /> Regenerate
                 </span>
               </label>
               <input className="input-field" value={mgrPassword}

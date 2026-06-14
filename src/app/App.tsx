@@ -3,6 +3,7 @@ import { useAuth }        from './context/AuthContext';
 import { AppLayout }      from './components/Layout';
 import Login              from './pages/Login';
 import { resolveView }    from './routes';
+import { Film }           from './utils/icons';
 
 const App = () => {
   const { isLoggedIn, isLoading, currentView, role } = useAuth();
@@ -20,7 +21,7 @@ const App = () => {
         flexDirection: 'column',
         gap: 16,
       }}>
-        <div style={{ fontSize: '3rem', animation: 'pulse 1.5s infinite' }}>🎬</div>
+        <div style={{ animation: 'pulse 1.5s infinite' }}><Film size={48} color="var(--gold)" /></div>
         <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem', fontFamily: 'var(--font-body)' }}>
           Loading UniCinema…
         </div>

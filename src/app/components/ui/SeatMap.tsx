@@ -3,6 +3,7 @@ import {
   RoomTemplate, SectionConfig, SectionKey,
   sectionKey, parseSectionKey,
 } from '../../services/templateService';
+import { X, Ticket } from '../../utils/icons';
 
 interface SeatMapProps {
   template:     RoomTemplate;
@@ -106,7 +107,7 @@ const SeatMap = ({ template, bookedSeats = [], onConfirm }: SeatMapProps) => {
               return (
                 <span key={id} className="sm-chip">
                   {sec?.name?.[0] ?? '?'}{seatIdx}
-                  <span className="sm-chip-x" onClick={() => setSelected(p => p.filter(s => s !== id))}>✕</span>
+                  <span className="sm-chip-x" onClick={() => setSelected(p => p.filter(s => s !== id))}><X size={11} /></span>
                 </span>
               );
             })}
@@ -115,7 +116,7 @@ const SeatMap = ({ template, bookedSeats = [], onConfirm }: SeatMapProps) => {
             <button className="btn btn-outline btn-sm" onClick={() => setSelected([])}>Clear All</button>
             {onConfirm && (
               <button className="btn btn-primary btn-sm" onClick={() => onConfirm(selected)}>
-                🎟️ Confirm {selected.length} Seat{selected.length > 1 ? 's' : ''}
+                <Ticket size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Confirm {selected.length} Seat{selected.length > 1 ? 's' : ''}
               </button>
             )}
           </div>

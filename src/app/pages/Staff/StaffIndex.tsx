@@ -7,6 +7,10 @@ import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Schedule, subscribeToRoomSchedules, autoStatus, todayString, formatDate } from '../../services/scheduleService';
 import { Booking, checkInBooking, findBookingByCode, getBookedSeats } from '../../services/bookingService';
 import WalkupBooking from '../../components/WalkupBooking';
+import {
+  IconGlyph, Calendar, X, Building2, Ticket, Hourglass, Check,
+  CheckCircle2, CircleDot, XCircle, Maximize,
+} from '../../utils/icons';
 
 
 // ─── Fullscreen Carousel ──────────────────────────────────────────────────────
@@ -39,9 +43,9 @@ const FullscreenSchedule = ({
     return (
       <div style={overlay}>
         <div style={overlayInner}>
-          <div style={{ fontSize: '4rem', marginBottom: 20 }}>📅</div>
+          <div style={{ marginBottom: 20 }}><Calendar size={64} /></div>
           <div style={{ fontSize: '1.4rem', color: '#fff' }}>No shows scheduled today.</div>
-          <button style={closeBtn} onClick={onClose}>✕ Close</button>
+          <button style={{ ...closeBtn, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={onClose}><X size={14} /> Close</button>
         </div>
       </div>
     );
@@ -64,7 +68,7 @@ const FullscreenSchedule = ({
         onClick={e => e.stopPropagation()}>
 
         {/* Close button */}
-        <button style={closeBtn} onClick={onClose}>✕</button>
+        <button style={{ ...closeBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}><X size={16} /></button>
 
         {/* Navigation arrows */}
         {schedules.length > 1 && (
@@ -90,9 +94,9 @@ const FullscreenSchedule = ({
           {statusLabel.text}
         </div>
 
-        {/* Emoji */}
-        <div style={{ fontSize: '7rem', marginBottom: 24, lineHeight: 1 }}>
-          {movie?.emoji ?? '🎬'}
+        {/* Movie icon */}
+        <div style={{ marginBottom: 24, color: '#fff' }}>
+          <IconGlyph iconKey={movie?.emoji} size={96} />
         </div>
 
         {/* Title */}
@@ -171,7 +175,9 @@ const FullscreenSchedule = ({
                   paddingBottom: 4, transition: 'all 0.2s',
                 }}
               >
-                <div style={{ fontSize: '1.2rem' }}>{mv?.emoji ?? '🎬'}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', color: 'rgba(255,255,255,0.85)' }}>
+                  <IconGlyph iconKey={mv?.emoji} size={20} />
+                </div>
                 <div style={{ fontSize: '0.68rem', color: col, fontWeight: 600 }}>{sc.startTime}</div>
                 <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', maxWidth: 70,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -222,13 +228,13 @@ const navBtn: React.CSSProperties = {
 const statusBadge = (s: Schedule) => {
   const st  = autoStatus(s.date, s.startTime, s.endTime);
   const map = {
-    running:   { v: 'success' as const, label: '🔴 Running'   },
-    upcoming:  { v: 'info'    as const, label: '⏳ Upcoming'  },
-    completed: { v: 'muted'   as const, label: '✅ Completed' },
-    cancelled: { v: 'danger'  as const, label: '❌ Cancelled' },
+    running:   { v: 'success' as const, label: 'Running',   icon: <CircleDot size={11} /> },
+    upcoming:  { v: 'info'    as const, label: 'Upcoming',  icon: <Hourglass size={11} /> },
+    completed: { v: 'muted'   as const, label: 'Completed', icon: <CheckCircle2 size={11} /> },
+    cancelled: { v: 'danger'  as const, label: 'Cancelled', icon: <XCircle size={11} /> },
   };
-  const { v, label } = map[st];
-  return <Badge variant={v}>{label}</Badge>;
+  const { v, label, icon } = map[st];
+  return <Badge variant={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{icon} {label}</Badge>;
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -308,7 +314,7 @@ const StaffIndex = () => {
         setScanResult({ ok: false, message: 'This ticket has been cancelled.' });
       } else {
         await checkInBooking(booking.id);
-        setScanResult({ ok: true, message: `✅ ${booking.userName} — checked in! (${booking.movieTitle} ${booking.showTime})` });
+        setScanResult({ ok: true, message: `${booking.userName} — checked in! (${booking.movieTitle} ${booking.showTime})` });
         setTicketCode('');
         if (selectedSchedule?.id === booking.scheduleId) {
           const seats = await getBookedSeats(selectedSchedule.id);
@@ -325,7 +331,7 @@ const StaffIndex = () => {
       <div className="page fade-in">
         <div className="page-header"><h2>Staff Panel</h2></div>
         <div className="empty-state">
-          <div className="empty-state-icon">🏟️</div>
+          <div className="empty-state-icon"><Building2 size={32} /></div>
           <div className="empty-state-text">No active cinema room. Contact the Cinema Room Manager.</div>
         </div>
       </div>
@@ -355,9 +361,11 @@ const StaffIndex = () => {
         color: 'var(--gold)', fontWeight: 600,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <span>📅 {formatDate(todayString())}</span>
-        <Button size="sm" onClick={() => setShowFullscreen(true)}>
-          ⛶ Fullscreen View
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Calendar size={13} /> {formatDate(todayString())}
+        </span>
+        <Button size="sm" icon={<Maximize size={14} />} onClick={() => setShowFullscreen(true)}>
+          Fullscreen View
         </Button>
       </div>
 
@@ -415,10 +423,10 @@ const StaffIndex = () => {
             {/* Walk-up booking button */}
             <button
               className="btn btn-primary"
-              style={{ width: '100%', justifyContent: 'center', marginBottom: 14 }}
+              style={{ width: '100%', justifyContent: 'center', marginBottom: 14, display: 'inline-flex', alignItems: 'center', gap: 8 }}
               onClick={() => setShowWalkup(true)}
             >
-              🎟️ Walk-up / Venue Booking
+              <Ticket size={14} /> Walk-up / Venue Booking
             </button>
 
             <div style={{
@@ -436,7 +444,7 @@ const StaffIndex = () => {
 
             <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
               <div className="search-wrap" style={{ flex: 1 }}>
-                <span className="search-icon">🎟️</span>
+                <span className="search-icon"><Ticket size={14} /></span>
                 <input
                   className="input-field"
                   placeholder="Ticket code e.g. TKT-A3F2KL"
@@ -445,8 +453,8 @@ const StaffIndex = () => {
                   onKeyDown={e => e.key === 'Enter' && handleCheckIn()}
                 />
               </div>
-              <Button onClick={handleCheckIn} disabled={scanLoading}>
-                {scanLoading ? '⏳' : '✓ Verify'}
+              <Button onClick={handleCheckIn} disabled={scanLoading} icon={scanLoading ? <Hourglass size={14} /> : <Check size={14} />}>
+                {scanLoading ? '' : 'Verify'}
               </Button>
             </div>
 
@@ -457,7 +465,9 @@ const StaffIndex = () => {
                 border: `1px solid ${scanResult.ok ? 'rgba(76,175,130,0.3)' : 'rgba(224,92,92,0.3)'}`,
                 color: scanResult.ok ? 'var(--success)' : 'var(--danger)',
                 fontSize: '0.83rem',
+                display: 'flex', alignItems: 'center', gap: 8,
               }}>
+                {scanResult.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
                 {scanResult.message}
               </div>
             )}
@@ -469,8 +479,8 @@ const StaffIndex = () => {
                 background: 'rgba(76,175,130,0.08)', border: '1px solid rgba(76,175,130,0.25)',
                 fontSize: '0.8rem',
               }}>
-                <div style={{ color: 'var(--success)', fontWeight: 600, marginBottom: 3 }}>
-                  ✅ Last walk-up: {lastWalkup.name}
+                <div style={{ color: 'var(--success)', fontWeight: 600, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CheckCircle2 size={14} /> Last walk-up: {lastWalkup.name}
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                   {lastWalkup.code}
@@ -517,11 +527,15 @@ const StaffIndex = () => {
               fontSize: '0.75rem', color: 'var(--text-muted)',
               display: 'flex', justifyContent: 'space-between',
             }}>
-              <span>🔴 Booked: {bookedSeats.length}</span>
-              <span>🟡 Available: {
-                Object.values(activeTemplate.sections)
-                  .reduce((s, sec) => s + sec.seatRows * sec.seatCols, 0) - bookedSeats.length
-              }</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <CircleDot size={11} style={{ color: 'var(--danger)' }} /> Booked: {bookedSeats.length}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <CircleDot size={11} style={{ color: 'var(--gold)' }} /> Available: {
+                  Object.values(activeTemplate.sections)
+                    .reduce((s, sec) => s + sec.seatRows * sec.seatCols, 0) - bookedSeats.length
+                }
+              </span>
             </div>
           )}
         </Card>

@@ -8,6 +8,7 @@ import {
   Booking, subscribeToRoomBookings,
   checkInBooking, cancelBooking, findBookingByCode,
 } from '../../services/bookingService';
+import { CheckCircle2, Ticket, Hourglass, XCircle, Search, Check } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ const TicketManagement = () => {
         setScanResult({ ok: false, message: 'This ticket has been cancelled.', booking });
       } else {
         await checkInBooking(booking.id);
-        setScanResult({ ok: true, message: `✅ ${booking.userName} checked in successfully!`, booking });
+        setScanResult({ ok: true, message: `${booking.userName} checked in successfully!`, booking });
         setTicketCode('');
       }
     } finally {
@@ -120,7 +121,7 @@ const TicketManagement = () => {
       <div className="page fade-in">
         <div className="page-header"><h2>Ticket Management</h2></div>
         <div className="empty-state">
-          <div className="empty-state-icon">🎟️</div>
+          <div className="empty-state-icon"><Ticket size={32} /></div>
           <div className="empty-state-text">No cinema room assigned. Contact the Admin.</div>
         </div>
       </div>
@@ -137,10 +138,10 @@ const TicketManagement = () => {
       {/* ── Stats ── */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
         {[
-          { icon: '🎟️', value: total,     label: 'Total Bookings' },
-          { icon: '✅', value: checkedIn,  label: 'Checked In'     },
-          { icon: '⏳', value: confirmed,  label: 'Pending Entry'  },
-          { icon: '❌', value: cancelled,  label: 'Cancelled'      },
+          { icon: <Ticket size={20} />,      value: total,     label: 'Total Bookings' },
+          { icon: <CheckCircle2 size={20} />, value: checkedIn, label: 'Checked In'     },
+          { icon: <Hourglass size={20} />,    value: confirmed, label: 'Pending Entry'  },
+          { icon: <XCircle size={20} />,      value: cancelled, label: 'Cancelled'      },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-icon">{s.icon}</div>
@@ -155,7 +156,7 @@ const TicketManagement = () => {
         <div className="card-body">
           <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
             <div className="search-wrap" style={{ flex: 1 }}>
-              <span className="search-icon">🎟️</span>
+              <span className="search-icon"><Ticket size={14} /></span>
               <input
                 className="input-field"
                 placeholder="Enter ticket code e.g. TKT-A3F2KL…"
@@ -164,8 +165,8 @@ const TicketManagement = () => {
                 onKeyDown={e => e.key === 'Enter' && handleScanCheckIn()}
               />
             </div>
-            <Button onClick={handleScanCheckIn} disabled={scanLoading}>
-              {scanLoading ? '⏳' : '✓ Check In'}
+            <Button onClick={handleScanCheckIn} disabled={scanLoading} icon={scanLoading ? <Hourglass size={14} /> : <Check size={14} />}>
+              {scanLoading ? '' : 'Check In'}
             </Button>
           </div>
 
@@ -177,7 +178,9 @@ const TicketManagement = () => {
               color: scanResult.ok ? 'var(--success)' : 'var(--danger)',
               fontSize: '0.83rem',
             }}>
-              {scanResult.message}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {scanResult.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />} {scanResult.message}
+              </div>
               {scanResult.booking && (
                 <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   {scanResult.booking.movieTitle} · {scanResult.booking.showTime} · Seats: {scanResult.booking.seats.length}
@@ -191,7 +194,7 @@ const TicketManagement = () => {
       {/* ── Filters ── */}
       <div className="table-toolbar" style={{ marginBottom: 16, borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
         <div className="search-wrap" style={{ flex: 1, minWidth: 180 }}>
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"><Search size={14} /></span>
           <input
             className="input-field"
             placeholder="Search name, email, ticket code, movie…"
@@ -231,7 +234,7 @@ const TicketManagement = () => {
       {/* ── Bookings list ── */}
       {filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🎟️</div>
+          <div className="empty-state-icon"><Ticket size={32} /></div>
           <div className="empty-state-text">
             {bookings.length === 0 ? 'No bookings yet.' : 'No bookings match your filters.'}
           </div>
@@ -279,7 +282,7 @@ const TicketManagement = () => {
                   <Button
                     size="sm"
                     onClick={e => { e.stopPropagation(); handleCheckIn(b); }}
-                    icon="✓"
+                    icon={<Check size={13} />}
                   >
                     Check In
                   </Button>
@@ -304,8 +307,8 @@ const TicketManagement = () => {
             )}
             <div style={{ flex: 1 }} />
             {detailBooking?.status === 'confirmed' && (
-              <Button onClick={() => handleCheckIn(detailBooking!)}>
-                ✓ Check In
+              <Button onClick={() => handleCheckIn(detailBooking!)} icon={<Check size={14} />}>
+                Check In
               </Button>
             )}
             <Button variant="outline" onClick={() => setDetailBooking(null)}>Close</Button>

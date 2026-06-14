@@ -1,11 +1,11 @@
 import { NavSection, UserRole } from '../types';
+import {
+  LayoutGrid, Users, Building2, Film, Popcorn, BarChart3,
+  User, Ticket, ClipboardList, Calendar, Bot,
+} from 'lucide-react';
+import { ROLE_ICON_COMPONENTS } from './icons';
 
-export const ROLE_ICONS: Record<UserRole, string> = {
-  Admin: '👑',
-  'Cinema Room': '🏟️',
-  Staff: '👤',
-  Moviegoer: '🎬',
-};
+export const ROLE_ICONS = ROLE_ICON_COMPONENTS;
 
 export const ROLE_DISPLAY_NAMES: Record<UserRole, string> = {
   Admin: 'Admin Master',
@@ -25,59 +25,59 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
   Admin: [
     {
       section: 'Overview',
-      items: [{ icon: '📊', label: 'Dashboard', view: 'dashboard' }],
+      items: [{ icon: LayoutGrid, label: 'Dashboard', view: 'dashboard' }],
     },
     {
       section: 'Management',
       items: [
-        { icon: '👥', label: 'Users',   view: 'users'   },
-        { icon: '🏟️', label: 'Rooms',   view: 'rooms'   },
-        { icon: '🎬', label: 'Movies',  view: 'movies'  },
-        { icon: '🍿', label: 'Snacks',  view: 'snacks'  },
+        { icon: Users,     label: 'Users',   view: 'users'   },
+        { icon: Building2, label: 'Rooms',   view: 'rooms'   },
+        { icon: Film,      label: 'Movies',  view: 'movies'  },
+        { icon: Popcorn,   label: 'Snacks',  view: 'snacks'  },
       ],
     },
     {
       section: 'Insights',
-      items: [{ icon: '📈', label: 'Analytics', view: 'analytics' }],
+      items: [{ icon: BarChart3, label: 'Analytics', view: 'analytics' }],
     },
   ],
   'Cinema Room': [
     {
       section: 'Overview',
-      items: [{ icon: '📊', label: 'Dashboard', view: 'dashboard' }],
+      items: [{ icon: LayoutGrid, label: 'Dashboard', view: 'dashboard' }],
     },
     {
       section: 'Manage',
       items: [
-        { icon: '🎬', label: 'Cinema',  view: 'cinema'  },
-        { icon: '👤', label: 'Staff',   view: 'staff'   },
-        { icon: '🎟️', label: 'Tickets', view: 'tickets' },
+        { icon: Film,   label: 'Cinema',  view: 'cinema'  },
+        { icon: User,   label: 'Staff',   view: 'staff'   },
+        { icon: Ticket, label: 'Tickets', view: 'tickets' },
       ],
     },
     {
       section: 'Insights',
-      items: [{ icon: '📈', label: 'Analytics', view: 'cm-analytics' }],
+      items: [{ icon: BarChart3, label: 'Analytics', view: 'cm-analytics' }],
     },
   ],
   Staff: [
     {
       section: 'Overview',
-      items: [{ icon: '📋', label: 'Schedule & Seats', view: 'staff-main' }],
+      items: [{ icon: ClipboardList, label: 'Schedule & Seats', view: 'staff-main' }],
     },
   ],
   Moviegoer: [
     {
       section: 'Discover',
       items: [
-        { icon: '🎬', label: 'Now Showing', view: 'browse'   },
-        { icon: '🗓️', label: 'Schedule',    view: 'schedule' },
-        { icon: '🤖', label: 'CineBot',    view: 'cinebot'     },
+        { icon: Film,     label: 'Now Showing', view: 'browse'   },
+        { icon: Calendar, label: 'Schedule',    view: 'schedule' },
+        { icon: Bot,      label: 'CineBot',     view: 'cinebot'  },
       ],
     },
     {
       section: 'My Account',
       items: [
-        { icon: '🎟️', label: 'My Tickets', view: 'my-tickets' },
+        { icon: Ticket, label: 'My Tickets', view: 'my-tickets' },
       ],
     },
   ],

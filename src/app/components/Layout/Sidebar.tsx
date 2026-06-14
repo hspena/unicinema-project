@@ -5,6 +5,7 @@ import { NAV_CONFIG, ROLE_ICONS } from '../../utils/helpers';
 import { SelectField }   from '../ui';
 import { getUserById }   from '../../services/userService';
 import { subscribeToUserBookings } from '../../services/bookingService';
+import { Film, X, Settings, Undo2 } from '../../utils/icons';
 
 interface SidebarProps {
   isOpen:  boolean;
@@ -59,13 +60,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
       {/* Brand */}
       <div className="sidebar-brand">
-        <div className="sidebar-brand-icon">🎬</div>
+        <div className="sidebar-brand-icon"><Film size={22} /></div>
         <div style={{ flex: 1 }}>
           <h1>CineHub</h1>
           <p>Universal Ticketing</p>
         </div>
         <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">
-          ✕
+          <X size={16} />
         </button>
       </div>
 
@@ -76,10 +77,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             value={role}
             onChange={e => switchRole(e.target.value as UserRole)}
             options={[
-              { value: 'Admin',       label: '👑 Admin'               },
-              { value: 'Cinema Room', label: '🏟️ Cinema Room Manager' },
-              { value: 'Staff',       label: '👤 Staff'               },
-              { value: 'Moviegoer',   label: '🎬 Moviegoer'           },
+              { value: 'Admin',       label: 'Admin'               },
+              { value: 'Cinema Room', label: 'Cinema Room Manager' },
+              { value: 'Staff',       label: 'Staff'               },
+              { value: 'Moviegoer',   label: 'Moviegoer'           },
             ]}
           />
         </div>
@@ -94,13 +95,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               const badge = item.view === 'my-tickets'
                 ? (upcomingTickets > 0 ? String(upcomingTickets) : undefined)
                 : item.badge;
+              const ItemIcon = item.icon;
               return (
                 <div
                   key={item.view}
                   className={`nav-item${currentView === item.view ? ' active' : ''}`}
                   onClick={() => handleNav(item.view)}
                 >
-                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-icon"><ItemIcon size={17} /></span>
                   <span>{item.label}</span>
                   {badge && <span className="nav-badge">{badge}</span>}
                 </div>
@@ -114,7 +116,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           className={`nav-item${currentView === 'settings' ? ' active' : ''}`}
           onClick={() => handleNav('settings')}
         >
-          <span className="nav-icon">⚙️</span>
+          <span className="nav-icon"><Settings size={17} /></span>
           <span>Settings</span>
         </div>
       </nav>
@@ -122,7 +124,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* User chip / logout */}
       <div className="sidebar-footer">
         <div className="user-chip" onClick={logout} title="Click to log out">
-          <div className="avatar">{ROLE_ICONS[role]}</div>
+          <div className="avatar">{(() => { const RoleIcon = ROLE_ICONS[role]; return <RoleIcon size={16} />; })()}</div>
           <div className="user-chip-info">
             {/* Display name from Firebase, falls back to role label */}
             <div className="user-chip-name">
@@ -135,7 +137,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               <div className="user-chip-role">{role}</div>
             )}
           </div>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>↩</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}><Undo2 size={13} /></span>
         </div>
       </div>
     </aside>

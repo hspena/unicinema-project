@@ -7,6 +7,7 @@ import { subscribeToRoomSchedules, autoStatus, todayString, formatDate } from '.
 import { subscribeToRoomBookings, Booking } from '../../services/bookingService';
 import { subscribeToMovieReviews, getMovieAverageRating, Review } from '../../services/reviewService';
 import { Schedule } from '../../services/scheduleService';
+import { Star, Building2, Ticket, DollarSign, CheckCircle2, Calendar } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -206,7 +207,7 @@ const CMDashboard = () => {
       <div className="page fade-in">
         <div className="page-header"><h2>Dashboard</h2></div>
         <div className="empty-state">
-          <div className="empty-state-icon">🏟️</div>
+          <div className="empty-state-icon"><Building2 size={32} /></div>
           <div className="empty-state-text">No room assigned. Contact the Admin.</div>
         </div>
       </div>
@@ -220,8 +221,8 @@ const CMDashboard = () => {
           <h2>{myRoom.name} — Dashboard</h2>
           <p>Manage your cinema room, schedule, and bookings.</p>
         </div>
-        <Button onClick={() => setShowReviews(true)}>
-          ⭐ View Reviews
+        <Button onClick={() => setShowReviews(true)} icon={<Star size={14} />}>
+          View Reviews
         </Button>
       </div>
 
@@ -255,13 +256,13 @@ const CMDashboard = () => {
       {/* Stats */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-card-icon">🎟️</div>
+          <div className="stat-card-icon"><Ticket size={20} /></div>
           <div className="stat-card-value">{todayBookings.length}</div>
           <div className="stat-card-label">Bookings Today</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>{totalTickets} all time</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon">💰</div>
+          <div className="stat-card-icon"><DollarSign size={20} /></div>
           <div className="stat-card-value" style={{ color: 'var(--gold)' }}>RM {todayRevenue.toFixed(0)}</div>
           <div className="stat-card-label">Revenue Today</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -269,7 +270,7 @@ const CMDashboard = () => {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon">✅</div>
+          <div className="stat-card-icon"><CheckCircle2 size={20} /></div>
           <div className="stat-card-value">{checkedIn}</div>
           <div className="stat-card-label">Checked In</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -277,7 +278,7 @@ const CMDashboard = () => {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon">📅</div>
+          <div className="stat-card-icon"><Calendar size={20} /></div>
           <div className="stat-card-value">{todaySchedules.length}</div>
           <div className="stat-card-label">Shows Today</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>{schedules.length} scheduled total</div>
@@ -378,7 +379,7 @@ const CMDashboard = () => {
 
       {/* Reviews Modal */}
       <Modal
-        title={`⭐ Reviews — ${myRoom.name}`}
+        title={<><Star size={16} style={{ verticalAlign: -3, marginRight: 6 }} /> Reviews — {myRoom.name}</>}
         open={showReviews}
         onClose={() => setShowReviews(false)}
         footer={<Button onClick={() => setShowReviews(false)}>Close</Button>}

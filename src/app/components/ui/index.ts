@@ -6,4 +6,5 @@ export { default as Toggle }    from './Toggle';
 export { default as StatCard }  from './StatCard';
 export { default as BarChart }  from './BarChart';
 export { default as SeatMap }   from './SeatMap';
+export { default as IconPicker } from './IconPicker';
 export { InputField, SelectField } from './FormFields';

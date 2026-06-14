@@ -3,10 +3,14 @@ import { Button, Modal, Badge } from './ui';
 import SeatMap from './ui/SeatMap';
 import { Room, RoomTemplate, subscribeToTemplates } from '../services/templateService';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../services/movieService';
-import { Schedule, subscribeToRoomSchedules, autoStatus, formatDate } from '../services/scheduleService';
+import { Schedule, subscribeToRoomSchedules, autoStatus, formatDate, todayString } from '../services/scheduleService';
 import { createBooking, getBookedSeats } from '../services/bookingService';
 import { subscribeToUsers } from '../services/userService';
 import { User } from '../types';
+import {
+  Check, ArrowLeft, ArrowRight, Hourglass, AlertTriangle, User as UserIcon,
+  Search, X, Film, CircleDot, Clock, PartyPopper, IconGlyph,
+} from '../utils/icons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,7 +72,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
   const template = templates.find(t => t.id === room.templateId) ?? null;
 
   // Today's upcoming / running shows
-  const todayStr    = new Date().toISOString().split('T')[0];
+  const todayStr    = todayString();
   const liveShows   = schedules.filter(s =>
     s.date === todayStr &&
     ['upcoming', 'running'].includes(autoStatus(s.date, s.startTime, s.endTime))
@@ -164,7 +168,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
       onClose={handleClose}
       footer={
         step === 4 ? (
-          <Button onClick={handleClose}>✓ Done</Button>
+          <Button onClick={handleClose}><Check size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Done</Button>
         ) : step === 1 ? (
           <>
             <Button variant="outline" onClick={handleClose}>Cancel</Button>
@@ -175,26 +179,28 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
                 setError(''); setStep(2);
               }}
             >
-              Next →
+              Next <ArrowRight size={14} style={{ verticalAlign: -2, marginLeft: 4 }} />
             </Button>
           </>
         ) : step === 2 ? (
           <>
-            <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
+            <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Back</Button>
             <Button
               onClick={() => {
                 if (!selectedSchedule) { setError('Please select a show.'); return; }
                 setError(''); setStep(3);
               }}
             >
-              Next →
+              Next <ArrowRight size={14} style={{ verticalAlign: -2, marginLeft: 4 }} />
             </Button>
           </>
         ) : (
           <>
-            <Button variant="outline" onClick={() => setStep(2)}>← Back</Button>
+            <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Back</Button>
             <Button onClick={handleConfirm} disabled={isSaving || chosenSeats.length === 0}>
-              {isSaving ? '⏳ Booking…' : `✓ Check In (${chosenSeats.length} seat${chosenSeats.length !== 1 ? 's' : ''})`}
+              {isSaving
+                ? <><Hourglass size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Booking…</>
+                : <><Check size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Check In ({chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''})</>}
             </Button>
           </>
         )
@@ -226,7 +232,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
         </div>
       )}
 
-      {error && <div className="auth-error" style={{ marginBottom: 12 }}>⚠️ {error}</div>}
+      {error && <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {error}</div>}
 
       {/* ══ STEP 1: Patron ══ */}
       {step === 1 && (
@@ -237,13 +243,13 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
               className={`login-tab ${mode === 'guest' ? 'active' : ''}`}
               onClick={() => { setMode('guest'); setSelectedUser(null); setError(''); }}
             >
-              👤 Walk-in Guest
+              <UserIcon size={14} style={{ verticalAlign: -2, marginRight: 5 }} /> Walk-in Guest
             </button>
             <button
               className={`login-tab ${mode === 'account' ? 'active' : ''}`}
               onClick={() => { setMode('account'); setGuestName(''); setError(''); }}
             >
-              🔍 Find Account
+              <Search size={14} style={{ verticalAlign: -2, marginRight: 5 }} /> Find Account
             </button>
           </div>
 
@@ -338,7 +344,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
                   <button
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem' }}
                     onClick={() => { setSelectedUser(null); setUserSearch(''); }}
-                  >✕</button>
+                  ><X size={15} /></button>
                 </div>
               )}
             </>
@@ -382,9 +388,9 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
                     <div style={{
                       width: 44, height: 44, borderRadius: 8, flexShrink: 0,
                       background: movie?.color || genre?.color || '#1a1628',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      {movie?.emoji || genre?.emoji || '🎬'}
+                      <IconGlyph iconKey={movie?.emoji || genre?.emoji} size={22} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -402,7 +408,10 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
                       </div>
                     </div>
                     <Badge variant={status === 'running' ? 'success' : 'info'}>
-                      {status === 'running' ? '🔴 Now' : '⏳ Soon'}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {status === 'running' ? <CircleDot size={12} /> : <Clock size={12} />}
+                        {status === 'running' ? 'Now' : 'Soon'}
+                      </span>
                     </Badge>
                   </div>
                 );
@@ -452,7 +461,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
       {/* ══ STEP 4: Done ══ */}
       {step === 4 && doneTicket && (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ fontSize: '3.5rem', marginBottom: 14 }}>🎉</div>
+          <div style={{ marginBottom: 14, color: 'var(--gold)', display: 'flex', justifyContent: 'center' }}><PartyPopper size={56} /></div>
           <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--success)', marginBottom: 8 }}>
             Checked In Successfully!
           </div>

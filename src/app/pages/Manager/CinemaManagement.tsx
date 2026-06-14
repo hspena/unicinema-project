@@ -10,6 +10,11 @@ import {
   subscribeToRoomSchedules, createSchedule, updateSchedule, deleteSchedule,
   computeEndTime, todayString, formatDate, autoStatus, findClash,
 } from '../../services/scheduleService';
+import {
+  IconGlyph, AlertTriangle, Ticket, Map, Pause, Play, Calendar, Popcorn,
+  Folder, CircleDot, Hourglass, Plus, Pencil, Trash2, Save, Film,
+  ToggleLeft, ToggleRight, CheckCircle2, XCircle, Building2,
+} from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -17,7 +22,7 @@ type TimeBucket = 'past' | 'today' | 'upcoming';
 
 const getBucketLocal = (date: string, startTime: string, endTime: string): TimeBucket => {
   const now   = new Date();
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayString();
   if (date < today) return 'past';
   if (date > today) return 'upcoming';
   const end = new Date(`${date}T${endTime}:00`);
@@ -28,13 +33,13 @@ const getBucketLocal = (date: string, startTime: string, endTime: string): TimeB
 const statusBadge = (s: Schedule) => {
   const computed = autoStatus(s.date, s.startTime, s.endTime);
   const map = {
-    running:   { v: 'success' as const, label: '🔴 Running'  },
-    upcoming:  { v: 'info'    as const, label: '⏳ Upcoming' },
-    completed: { v: 'muted'   as const, label: '✅ Done'     },
-    cancelled: { v: 'danger'  as const, label: '❌ Cancelled'},
+    running:   { v: 'success' as const, label: 'Running',   icon: <CircleDot size={12} /> },
+    upcoming:  { v: 'info'    as const, label: 'Upcoming',  icon: <Hourglass size={12} /> },
+    completed: { v: 'muted'   as const, label: 'Done',      icon: <CheckCircle2 size={12} /> },
+    cancelled: { v: 'danger'  as const, label: 'Cancelled', icon: <XCircle size={12} /> },
   };
-  const { v, label } = map[computed];
-  return <Badge variant={v}>{label}</Badge>;
+  const { v, label, icon } = map[computed];
+  return <Badge variant={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{icon} {label}</Badge>;
 };
 
 const emptyForm = (roomId: string, uid: string): SchedulePayload => ({
@@ -64,7 +69,9 @@ const ScheduleForm = ({
   return (
     <>
       {error && (
-        <div className="auth-error" style={{ marginBottom: 12 }}>⚠️ {error}</div>
+        <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertTriangle size={14} /> {error}
+        </div>
       )}
 
       {selectedMovie && (
@@ -74,7 +81,7 @@ const ScheduleForm = ({
           border: '1px solid var(--border)', borderRadius: 'var(--radius)',
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
-          <span style={{ fontSize: '1.8rem' }}>{selectedMovie.emoji}</span>
+          <IconGlyph iconKey={selectedMovie.emoji} size={28} />
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{selectedMovie.title}</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -89,7 +96,7 @@ const ScheduleForm = ({
         <select className="select-field" value={form.movieId}
           onChange={e => setForm(p => ({ ...p, movieId: e.target.value }))}>
           <option value="">Select a movie…</option>
-          {movies.map(m => <option key={m.id} value={m.id}>{m.emoji} {m.title} ({m.duration} min)</option>)}
+          {movies.map(m => <option key={m.id} value={m.id}>{m.title} ({m.duration} min)</option>)}
         </select>
       </div>
 
@@ -120,8 +127,8 @@ const ScheduleForm = ({
         transition: 'border-color var(--transition)',
       }}>
         <div>
-          <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)' }}>
-            🎟️ Free Tickets
+          <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Ticket size={14} /> Free Tickets
           </div>
           <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 2 }}>
             Moviegoers can book without payment for this show
@@ -265,12 +272,19 @@ const CinemaManagement = () => {
     await updateSnack(s.id, { available: !s.available });
   };
 
+  const allSnacksAvailable = snacks.length > 0 && snacks.every(s => s.available);
+
+  const handleToggleAllSnacks = async () => {
+    const nextAvailable = !allSnacksAvailable;
+    await Promise.all(snacks.map(s => updateSnack(s.id, { available: nextAvailable })));
+  };
+
   if (!myRoom) {
     return (
       <div className="page fade-in">
         <div className="page-header"><h2>Cinema Management</h2></div>
         <div className="empty-state">
-          <div className="empty-state-icon">🏟️</div>
+          <div className="empty-state-icon"><Building2 size={32} /></div>
           <div className="empty-state-text">No cinema room assigned. Contact the Admin.</div>
         </div>
       </div>
@@ -307,27 +321,28 @@ const CinemaManagement = () => {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {myTemplate && (
-            <Button variant="outline" size="sm" onClick={() => setShowSeatMap(true)}>
-              🗺️ Seat Map
+            <Button variant="outline" size="sm" icon={<Map size={14} />} onClick={() => setShowSeatMap(true)}>
+              Seat Map
             </Button>
           )}
           <Button
             variant={myRoom.status === 'active' ? 'danger' : 'primary'}
             size="sm"
+            icon={myRoom.status === 'active' ? <Pause size={14} /> : <Play size={14} />}
             onClick={handleToggleRoom}
           >
-            {myRoom.status === 'active' ? '⏸ Deactivate' : '▶ Activate'}
+            {myRoom.status === 'active' ? 'Deactivate' : 'Activate'}
           </Button>
         </div>
       </div>
 
       {/* ── Tabs ── */}
       <div className="rm-tabs" style={{ marginBottom: 20 }}>
-        <button className={`rm-tab ${tab === 'schedule' ? 'active' : ''}`} onClick={() => setTab('schedule')}>
-          📅 Schedule ({schedules.length})
+        <button className={`rm-tab ${tab === 'schedule' ? 'active' : ''}`} onClick={() => setTab('schedule')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Calendar size={14} /> Schedule ({schedules.length})
         </button>
-        <button className={`rm-tab ${tab === 'snacks' ? 'active' : ''}`} onClick={() => setTab('snacks')}>
-          🍿 Snacks ({snacks.filter(s => s.available).length} active)
+        <button className={`rm-tab ${tab === 'snacks' ? 'active' : ''}`} onClick={() => setTab('snacks')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Popcorn size={14} /> Snacks ({snacks.filter(s => s.available).length} active)
         </button>
       </div>
 
@@ -338,9 +353,9 @@ const CinemaManagement = () => {
           actions={
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {[
-                { key: 'past',     label: '📁 Past',     count: pastCount     },
-                { key: 'today',    label: '🔴 Today',    count: todayCount    },
-                { key: 'upcoming', label: '⏳ Upcoming', count: upcomingCount },
+                { key: 'past',     label: 'Past',     icon: <Folder size={12} />,    count: pastCount     },
+                { key: 'today',    label: 'Today',    icon: <CircleDot size={12} />, count: todayCount    },
+                { key: 'upcoming', label: 'Upcoming', icon: <Hourglass size={12} />, count: upcomingCount },
               ].map(b => (
                 <button
                   key={b.key}
@@ -355,7 +370,7 @@ const CinemaManagement = () => {
                     display: 'flex', alignItems: 'center', gap: 5,
                   }}
                 >
-                  {b.label}
+                  {b.icon} {b.label}
                   <span style={{
                     fontSize: '0.65rem', padding: '0 5px', borderRadius: 99,
                     background: scheduleBucket === b.key ? 'rgba(0,0,0,0.2)' : 'var(--surface-raised)',
@@ -365,7 +380,7 @@ const CinemaManagement = () => {
                   </span>
                 </button>
               ))}
-              <Button size="sm" icon="+" onClick={openAdd}>Add Show</Button>
+              <Button size="sm" icon={<Plus size={14} />} onClick={openAdd}>Add Show</Button>
             </div>
           }
         >
@@ -398,15 +413,16 @@ const CinemaManagement = () => {
                         fontSize: '0.68rem', color: 'var(--text-muted)',
                         fontWeight: 600, marginTop: 10, marginBottom: 4,
                         paddingBottom: 4, borderBottom: '1px solid var(--border)',
+                        display: 'flex', alignItems: 'center', gap: 5,
                       }}>
-                        {s.date === todayString() ? '📅 Today' : s.date}
+                        {s.date === todayString() ? <><Calendar size={11} /> Today</> : s.date}
                       </div>
                     )}
                     <div className="schedule-slot" style={{ opacity: scheduleBucket === 'past' ? 0.7 : 1 }}>
                       <div className="schedule-time">{s.startTime}</div>
                       <div className="schedule-movie" style={{ flex: 1 }}>
-                        <div className="schedule-movie-name">
-                          {movie?.emoji} {movie?.title ?? '—'}
+                        <div className="schedule-movie-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <IconGlyph iconKey={movie?.emoji} size={15} /> {movie?.title ?? '—'}
                           {s.freeTickets && (
                             <span style={{
                               marginLeft: 8, fontSize: '0.68rem', padding: '1px 6px',
@@ -423,12 +439,12 @@ const CinemaManagement = () => {
                       {/* Only show edit/delete on non-past shows */}
                       {scheduleBucket !== 'past' && (
                         <div style={{ display: 'flex', gap: 5, marginLeft: 6 }}>
-                          <button className="icon-btn btn-icon" onClick={() => openEdit(s)}>✏️</button>
+                          <button className="icon-btn btn-icon" onClick={() => openEdit(s)}><Pencil size={14} /></button>
                           <button
                             className="icon-btn btn-icon"
                             style={{ color: 'var(--danger)' }}
                             onClick={() => handleDeleteSchedule(s)}
-                          >🗑️</button>
+                          ><Trash2 size={14} /></button>
                         </div>
                       )}
                     </div>
@@ -442,10 +458,24 @@ const CinemaManagement = () => {
 
       {/* ══ Snacks Tab ══ */}
       {tab === 'snacks' && (
-        <Card title="Snack Configuration">
+        <Card
+          title="Snack Configuration"
+          actions={
+            snacks.length > 0 && (
+              <Button
+                variant={allSnacksAvailable ? 'outline' : 'primary'}
+                size="sm"
+                icon={allSnacksAvailable ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                onClick={handleToggleAllSnacks}
+              >
+                {allSnacksAvailable ? 'Turn All Off' : 'Turn All On'}
+              </Button>
+            )
+          }
+        >
           <div className="card-body">
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-              Toggle snacks on or off for this room. Snack details are managed by the Admin.
+              Toggle snacks on or off for this room, or use the button above to switch them all at once. Snack details are managed by the Admin.
             </div>
             {snacks.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
@@ -462,7 +492,7 @@ const CinemaManagement = () => {
                     opacity: s.available ? 1 : 0.5,
                     transition: 'all var(--transition)',
                   }}>
-                    <span style={{ fontSize: '1.6rem' }}>{s.emoji || CATEGORY_ICONS[s.category]}</span>
+                    <IconGlyph iconKey={s.emoji || CATEGORY_ICONS[s.category]} size={26} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{s.name}</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -503,8 +533,8 @@ const CinemaManagement = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAddSchedule(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? '⏳ Saving…' : '🎬 Add Show'}
+            <Button onClick={handleSave} disabled={isSaving} icon={isSaving ? <Hourglass size={14} /> : <Film size={14} />}>
+              {isSaving ? 'Saving…' : 'Add Show'}
             </Button>
           </>
         }
@@ -520,8 +550,8 @@ const CinemaManagement = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setEditSchedule(null)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? '⏳ Saving…' : '💾 Save Changes'}
+            <Button onClick={handleSave} disabled={isSaving} icon={isSaving ? <Hourglass size={14} /> : <Save size={14} />}>
+              {isSaving ? 'Saving…' : 'Save Changes'}
             </Button>
           </>
         }

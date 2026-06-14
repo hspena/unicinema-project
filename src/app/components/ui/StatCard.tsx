@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
+import { TrendingUp, TrendingDown } from '../../utils/icons';
 
 interface StatCardProps {
-  icon:     string;
+  icon:     ReactNode;
   value:    string | number;
   label:    string;
   trend?:   string;
@@ -16,7 +17,7 @@ const StatCard = ({ icon, value, label, trend, trendUp, delay }: StatCardProps) 
     <div className="stat-card-label">{label}</div>
     {trend && (
       <div className={`stat-card-trend ${trendUp ? 'trend-up' : 'trend-down'}`}>
-        {trendUp ? '↑' : '↓'} {trend}
+        {trendUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />} {trend}
       </div>
     )}
   </div>

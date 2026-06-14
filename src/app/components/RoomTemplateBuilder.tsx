@@ -5,6 +5,8 @@ import {
   createTemplate, saveTemplate,
 } from '.././services/templateService';
 import { useAuth } from '.././context/AuthContext';
+import { MousePointerClick } from 'lucide-react';
+import { AlertTriangle, Save, Hourglass } from '../utils/icons';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
@@ -323,7 +325,7 @@ const RoomTemplateBuilder = ({ existing, onSaved, onCancel }: Props) => {
             />
           ) : (
             <div className="rtb-sidebar-hint">
-              <div style={{ fontSize: '2rem', marginBottom: 10 }}>👆</div>
+              <div style={{ marginBottom: 10, color: 'var(--text-muted)' }}><MousePointerClick size={32} /></div>
               <div>Click any section block to configure its seat rows and columns.</div>
             </div>
           )}
@@ -333,7 +335,7 @@ const RoomTemplateBuilder = ({ existing, onSaved, onCancel }: Props) => {
       {/* ── Footer actions ── */}
       {saveError && (
         <div className="auth-error" style={{ marginTop: 12 }}>
-          ⚠️ {saveError}
+          <AlertTriangle size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> {saveError}
         </div>
       )}
 
@@ -348,7 +350,9 @@ const RoomTemplateBuilder = ({ existing, onSaved, onCancel }: Props) => {
           onClick={handleSave}
           disabled={isSaving}
         >
-          {isSaving ? '⏳ Saving…' : existing ? '💾 Save Changes' : '💾 Save Template'}
+          {isSaving
+            ? <><Hourglass size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Saving…</>
+            : <><Save size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> {existing ? 'Save Changes' : 'Save Template'}</>}
         </button>
       </div>
     </div>

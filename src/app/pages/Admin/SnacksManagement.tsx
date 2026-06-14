@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button, Modal } from '../../components/ui';
+import { Card, Badge, Button, Modal, IconPicker } from '../../components/ui';
 import {
   Snack, SnackPayload, SnackCategory,
   subscribeToSnacks, createSnack, updateSnack,
@@ -7,6 +7,10 @@ import {
   SNACK_CATEGORIES, CATEGORY_ICONS,
   seedDefaultSnacks,
 } from '../../services/snackService';
+import {
+  AlertTriangle, Search, ShoppingBag, XCircle, DollarSign, Plus, Hourglass,
+  Eye, EyeOff, Trash2, Save, Popcorn, IconGlyph, SNACK_ICON_KEYS, LayoutGrid, Menu,
+} from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -36,7 +40,7 @@ const SnackForm = ({
   error:   string;
 }) => (
   <>
-    {error && <div className="auth-error" style={{ marginBottom: 12 }}>⚠️ {error}</div>}
+    {error && <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {error}</div>}
 
     {/* Live preview */}
     <div style={{
@@ -44,8 +48,8 @@ const SnackForm = ({
       background: 'var(--navy)', border: '1px solid var(--border)',
       borderRadius: 'var(--radius)', marginBottom: 18,
     }}>
-      <span style={{ fontSize: '2.5rem' }}>
-        {form.emoji || CATEGORY_ICONS[form.category]}
+      <span style={{ color: 'var(--gold)' }}>
+        <IconGlyph iconKey={form.emoji || CATEGORY_ICONS[form.category]} size={36} />
       </span>
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
@@ -63,26 +67,25 @@ const SnackForm = ({
       </Badge>
     </div>
 
-    {/* Name + Emoji */}
-    <div className="input-row">
-      <div className="input-group">
-        <label className="input-label">Item Name *</label>
-        <input
-          className="input-field"
-          placeholder="e.g. Large Popcorn"
-          value={form.name}
-          onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-        />
-      </div>
-      <div className="input-group">
-        <label className="input-label">Emoji</label>
-        <input
-          className="input-field"
-          placeholder={CATEGORY_ICONS[form.category]}
-          value={form.emoji}
-          onChange={e => setForm(p => ({ ...p, emoji: e.target.value }))}
-        />
-      </div>
+    {/* Name */}
+    <div className="input-group">
+      <label className="input-label">Item Name *</label>
+      <input
+        className="input-field"
+        placeholder="e.g. Large Popcorn"
+        value={form.name}
+        onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+      />
+    </div>
+
+    {/* Icon */}
+    <div className="input-group">
+      <label className="input-label">Icon (optional — defaults to category icon)</label>
+      <IconPicker
+        value={form.emoji}
+        onChange={key => setForm(p => ({ ...p, emoji: p.emoji === key ? '' : key }))}
+        options={SNACK_ICON_KEYS}
+      />
     </div>
 
     {/* Category */}
@@ -94,7 +97,7 @@ const SnackForm = ({
         onChange={e => setForm(p => ({ ...p, category: e.target.value as SnackCategory }))}
       >
         {SNACK_CATEGORIES.map(c => (
-          <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
+          <option key={c} value={c}>{c}</option>
         ))}
       </select>
     </div>
@@ -199,8 +202,8 @@ const RestockModal = ({
       footer={
         <>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleRestock} disabled={saving}>
-            {saving ? '⏳ Restocking…' : `➕ Add ${amount} units`}
+          <Button onClick={handleRestock} disabled={saving} icon={saving ? <Hourglass size={14} /> : <Plus size={14} />}>
+            {saving ? 'Restocking…' : `Add ${amount} units`}
           </Button>
         </>
       }
@@ -213,7 +216,7 @@ const RestockModal = ({
             background: 'var(--navy)', border: '1px solid var(--border)',
             borderRadius: 'var(--radius)', marginBottom: 20,
           }}>
-            <span style={{ fontSize: '2rem' }}>{snack.emoji || CATEGORY_ICONS[snack.category]}</span>
+            <span style={{ color: 'var(--gold)' }}><IconGlyph iconKey={snack.emoji || CATEGORY_ICONS[snack.category]} size={28} /></span>
             <div>
               <div style={{ fontWeight: 600 }}>{snack.name}</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
@@ -368,10 +371,10 @@ const SnacksManagement = () => {
       {/* ── Stats row ── */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
         {[
-          { icon: '🛍️', value: totalItems,              label: 'Total Items'   },
-          { icon: '⚠️', value: lowStock,                label: 'Low Stock',    },
-          { icon: '❌', value: outOfStock,              label: 'Out of Stock'  },
-          { icon: '💰', value: `RM ${totalValue.toFixed(0)}`, label: 'Stock Value' },
+          { icon: <ShoppingBag size={20} />, value: totalItems,              label: 'Total Items'   },
+          { icon: <AlertTriangle size={20} />, value: lowStock,                label: 'Low Stock',    },
+          { icon: <XCircle size={20} />,     value: outOfStock,              label: 'Out of Stock'  },
+          { icon: <DollarSign size={20} />,  value: `RM ${totalValue.toFixed(0)}`, label: 'Stock Value' },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-icon">{s.icon}</div>
@@ -384,7 +387,7 @@ const SnacksManagement = () => {
       {/* ── Toolbar ── */}
       <div className="table-toolbar" style={{ marginBottom: 16, borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
         <div className="search-wrap" style={{ flex: 1, minWidth: 180 }}>
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"><Search size={14} /></span>
           <input
             className="input-field"
             placeholder="Search items…"
@@ -399,7 +402,7 @@ const SnacksManagement = () => {
         >
           <option value="All">All Categories</option>
           {SNACK_CATEGORIES.map(c => (
-            <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
+            <option key={c} value={c}>{c}</option>
           ))}
         </select>
         {/* View toggle */}
@@ -407,13 +410,13 @@ const SnacksManagement = () => {
           className={`btn ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline'} btn-sm`}
           onClick={() => setViewMode('grid')}
           title="Grid view"
-        >⊞</button>
+        ><LayoutGrid size={14} /></button>
         <button
           className={`btn ${viewMode === 'table' ? 'btn-primary' : 'btn-outline'} btn-sm`}
           onClick={() => setViewMode('table')}
           title="Table view"
-        >☰</button>
-        <Button icon="+" onClick={openAdd}>Add Item</Button>
+        ><Menu size={14} /></button>
+        <Button icon={<Plus size={14} />} onClick={openAdd}>Add Item</Button>
       </div>
 
       {/* ── Category filter pills ── */}
@@ -426,6 +429,7 @@ const SnacksManagement = () => {
               key={c}
               onClick={() => setCatFilter(c as any)}
               style={{
+                display: 'flex', alignItems: 'center', gap: 5,
                 padding: '4px 12px', borderRadius: 99, cursor: 'pointer',
                 fontSize: '0.74rem', fontWeight: 500,
                 background: catFilter === c ? 'var(--gold)' : 'var(--surface)',
@@ -433,7 +437,7 @@ const SnacksManagement = () => {
                 border: '1px solid var(--border)', transition: 'all var(--transition)',
               }}
             >
-              {c === 'All' ? '🛍️' : CATEGORY_ICONS[c as SnackCategory]} {c} ({count})
+              <IconGlyph iconKey={c === 'All' ? 'shopping-bag' : CATEGORY_ICONS[c as SnackCategory]} size={13} /> {c} ({count})
             </div>
           );
         })}
@@ -442,7 +446,7 @@ const SnacksManagement = () => {
       {/* ── Empty state ── */}
       {filtered.length === 0 && (
         <div className="empty-state">
-          <div className="empty-state-icon">🍿</div>
+          <div className="empty-state-icon"><Popcorn size={32} /></div>
           <div className="empty-state-text">
             {snacks.length === 0 ? 'No items yet. Add one to get started.' : 'No items match your search.'}
           </div>
@@ -458,8 +462,8 @@ const SnacksManagement = () => {
               <div key={s.id} className="snack-card" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 0 }}>
                 {/* Top row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <span className="snack-icon" style={{ fontSize: '2.2rem' }}>
-                    {s.emoji || CATEGORY_ICONS[s.category]}
+                  <span className="snack-icon" style={{ color: 'var(--gold)' }}>
+                    <IconGlyph iconKey={s.emoji || CATEGORY_ICONS[s.category]} size={32} />
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -468,8 +472,8 @@ const SnacksManagement = () => {
                         <Badge variant="muted">Hidden</Badge>
                       )}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                      {CATEGORY_ICONS[s.category]} {s.category}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                      <IconGlyph iconKey={CATEGORY_ICONS[s.category]} size={12} /> {s.category}
                       {s.description && <> · {s.description}</>}
                     </div>
                   </div>
@@ -500,17 +504,17 @@ const SnacksManagement = () => {
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
                   <Button variant="outline" size="sm" style={{ flex: 1 }} onClick={() => openEdit(s)}>Edit</Button>
-                  <Button variant="outline" size="sm" style={{ flex: 1 }} onClick={() => setRestockSnackItem(s)}>
-                    ➕ Restock
+                  <Button variant="outline" size="sm" style={{ flex: 1 }} icon={<Plus size={13} />} onClick={() => setRestockSnackItem(s)}>
+                    Restock
                   </Button>
                   <Button
                     variant="outline" size="sm"
                     onClick={() => handleToggleAvailable(s)}
                     title={s.available ? 'Hide from moviegoers' : 'Show to moviegoers'}
                   >
-                    {s.available ? '👁️' : '🙈'}
+                    {s.available ? <Eye size={14} /> : <EyeOff size={14} />}
                   </Button>
-                  <Button variant="danger" size="sm" onClick={() => handleDelete(s)}>🗑️</Button>
+                  <Button variant="danger" size="sm" onClick={() => handleDelete(s)}><Trash2 size={14} /></Button>
                 </div>
               </div>
             );
@@ -541,7 +545,7 @@ const SnacksManagement = () => {
                     <tr key={s.id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: '1.4rem' }}>{s.emoji || CATEGORY_ICONS[s.category]}</span>
+                          <span style={{ color: 'var(--gold)' }}><IconGlyph iconKey={s.emoji || CATEGORY_ICONS[s.category]} size={20} /></span>
                           <div>
                             <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{s.name}</div>
                             {s.description && (
@@ -565,7 +569,7 @@ const SnacksManagement = () => {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <Button variant="outline" size="sm" onClick={() => setRestockSnackItem(s)}>➕</Button>
+                          <Button variant="outline" size="sm" onClick={() => setRestockSnackItem(s)}><Plus size={13} /></Button>
                           <Button variant="outline" size="sm" onClick={() => openEdit(s)}>Edit</Button>
                           <Button variant="danger"  size="sm" onClick={() => handleDelete(s)}>Delete</Button>
                         </div>
@@ -587,8 +591,8 @@ const SnacksManagement = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? '⏳ Adding…' : '🍿 Add Item'}
+            <Button onClick={handleSave} disabled={isSaving} icon={isSaving ? <Hourglass size={14} /> : <Popcorn size={14} />}>
+              {isSaving ? 'Adding…' : 'Add Item'}
             </Button>
           </>
         }
@@ -604,8 +608,8 @@ const SnacksManagement = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setEditSnack(null)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? '⏳ Saving…' : '💾 Save Changes'}
+            <Button onClick={handleSave} disabled={isSaving} icon={isSaving ? <Hourglass size={14} /> : <Save size={14} />}>
+              {isSaving ? 'Saving…' : 'Save Changes'}
             </Button>
           </>
         }

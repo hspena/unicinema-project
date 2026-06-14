@@ -11,6 +11,11 @@ import {
   getUserReviewForMovie, getMovieAverageRating,
 } from '../../services/reviewService';
 import { getUserById } from '../../services/userService';
+import {
+  IconGlyph, Search, Film, Ticket, PartyPopper, CircleDot, Hourglass,
+  AlertTriangle, Save, Pencil, PenLine, Check, Send,
+} from '../../utils/icons';
+import type { ContentRating } from '../../services/movieService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +41,13 @@ const Stars = ({ rating, max = 5, size = 'md', interactive = false, onRate }: {
       })}
     </span>
   );
+};
+
+const RatingBadge = ({ rating }: { rating: ContentRating }) => {
+  const variant: 'success' | 'gold' | 'danger' =
+    rating === 'U' || rating === 'PG' ? 'success' :
+    rating === 'PG-13' || rating === '16' ? 'gold' : 'danger';
+  return <Badge variant={variant}>{rating}</Badge>;
 };
 
 const ReviewCard = ({ review }: { review: Review }) => {
@@ -248,22 +260,23 @@ const Browse = () => {
       {/* Search */}
       <div className="table-toolbar" style={{ marginBottom: 16, borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
         <div className="search-wrap" style={{ flex: 1, minWidth: 180 }}>
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"><Search size={14} /></span>
           <input className="input-field" placeholder="Search movies…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 
       {/* Genre pills */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-        {[{ id: 'All', name: 'All', emoji: '🎬' }, ...genres].map(g => (
+        {[{ id: 'All', name: 'All', emoji: 'film' }, ...genres].map(g => (
           <div key={g.id} onClick={() => setGenreFilter(g.id)} style={{
             padding: '4px 12px', borderRadius: 99, cursor: 'pointer',
             fontSize: '0.74rem', fontWeight: 500,
             background: genreFilter === g.id ? 'var(--gold)' : 'var(--surface)',
             color:      genreFilter === g.id ? 'var(--navy)' : 'var(--text-muted)',
             border: '1px solid var(--border)', transition: 'all var(--transition)',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
           }}>
-            {(g as any).emoji ?? '🎬'} {g.name}
+            <IconGlyph iconKey={(g as any).emoji ?? 'film'} size={13} /> {g.name}
           </div>
         ))}
       </div>
@@ -271,7 +284,7 @@ const Browse = () => {
       {/* Movie grid */}
       {filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🎬</div>
+          <div className="empty-state-icon"><Film size={32} /></div>
           <div className="empty-state-text">No movies found.</div>
         </div>
       ) : (
@@ -286,7 +299,7 @@ const Browse = () => {
               <div key={m.id} className="movie-card">
                 <div className="movie-poster" style={{ background: m.color || genre?.color || '#1a1628', cursor: 'pointer' }}
                   onClick={() => openDetail(m)}>
-                  <span style={{ fontSize: '3.5rem' }}>{m.emoji || genre?.emoji || '🎬'}</span>
+                  <IconGlyph iconKey={m.emoji || genre?.emoji} size={56} />
                   <div className="movie-genre-tag"><Badge variant="muted">{genre?.name ?? '—'}</Badge></div>
                   {!hasShow && (
                     <div style={{ position: 'absolute', top: 10, left: 10, padding: '2px 8px', borderRadius: 99, background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.6)', fontSize: '0.65rem' }}>
@@ -297,7 +310,7 @@ const Browse = () => {
                 <div className="movie-info">
                   <div className="movie-title">{m.title}</div>
                   <div className="movie-meta">{m.year} · {m.duration} min</div>
-                  <Stars rating={Math.round(m.rating / 2)} size="sm" />
+                  <RatingBadge rating={m.rating} />
                   {m.synopsis && (
                     <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {m.synopsis}
@@ -308,8 +321,8 @@ const Browse = () => {
                       Details & Reviews
                     </Button>
                     {hasShow && (
-                      <Button size="sm" style={{ flex: 1 }} onClick={() => openDetail(m)}>
-                        🎟️ Book Ticket
+                      <Button size="sm" style={{ flex: 1 }} icon={<Ticket size={13} />} onClick={() => openDetail(m)}>
+                        Book Ticket
                       </Button>
                     )}
                   </div>
@@ -323,7 +336,7 @@ const Browse = () => {
       {/* ══ Movie Detail Modal ══ */}
       <Modal
         title={detailMovie?.title ?? ''}
-        open={!!detailMovie}
+        open={!!detailMovie && !showSeatModal && !showConfirmModal}
         onClose={() => setDetailMovie(null)}
         footer={<Button variant="outline" onClick={() => setDetailMovie(null)}>Close</Button>}
       >
@@ -334,27 +347,32 @@ const Browse = () => {
               {/* Booking done banner */}
               {bookingDone && (
                 <div style={{ padding: '14px 16px', marginBottom: 16, background: 'rgba(76,175,130,0.12)', border: '1px solid rgba(76,175,130,0.35)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.8rem', marginBottom: 6 }}>🎉</div>
+                  <div style={{ marginBottom: 6, color: 'var(--success)' }}><PartyPopper size={28} /></div>
                   <div style={{ fontWeight: 600, color: 'var(--success)', marginBottom: 4 }}>Booking Confirmed!</div>
                   <div style={{ fontFamily: 'monospace', fontSize: '1.3rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em' }}>
                     {bookingDone.ticketCode}
                   </div>
-                  {bookingDone.isFree && <Badge variant="gold" style={{ marginTop: 8 }}>🎟️ Free Entry</Badge>}
+                  {bookingDone.isFree && (
+                    <Badge variant="gold" style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Ticket size={12} /> Free Entry
+                    </Badge>
+                  )}
                 </div>
               )}
 
               {/* Header */}
               <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
-                <div style={{ width: 72, height: 72, borderRadius: 'var(--radius)', flexShrink: 0, background: detailMovie.color || genre?.color || '#1a1628', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem' }}>
-                  {detailMovie.emoji || genre?.emoji || '🎬'}
+                <div style={{ width: 72, height: 72, borderRadius: 'var(--radius)', flexShrink: 0, background: detailMovie.color || genre?.color || '#1a1628', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconGlyph iconKey={detailMovie.emoji || genre?.emoji} size={34} />
                 </div>
                 <div>
                   <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 700 }}>{detailMovie.title}</div>
                   <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: '3px 0' }}>
                     {detailMovie.year} · {detailMovie.duration} min · {genre?.name}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Stars rating={Math.round(detailMovie.rating / 2)} size="sm" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <RatingBadge rating={detailMovie.rating} />
+                    <Stars rating={Math.round(avgRating)} size="sm" />
                     {detailReviews.length > 0 && (
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                         {avgRating.toFixed(1)} · {detailReviews.length} review{detailReviews.length > 1 ? 's' : ''}
@@ -399,12 +417,12 @@ const Browse = () => {
                               )}
                             </div>
                           </div>
-                          <Badge variant={status === 'running' ? 'success' : 'info'}>
-                            {status === 'running' ? '🔴 Now' : '⏳ Upcoming'}
+                          <Badge variant={status === 'running' ? 'success' : 'info'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            {status === 'running' ? <CircleDot size={11} /> : <Hourglass size={11} />} {status === 'running' ? 'Now' : 'Upcoming'}
                           </Badge>
                           {/* ← Book Ticket button per show */}
-                          <Button size="sm" onClick={() => handleOpenBooking(s)}>
-                            🎟️ Book
+                          <Button size="sm" icon={<Ticket size={13} />} onClick={() => handleOpenBooking(s)}>
+                            Book
                           </Button>
                         </div>
                       );
@@ -427,8 +445,8 @@ const Browse = () => {
 
                 {uid && (
                   <div style={{ padding: '12px 14px', background: 'var(--surface)', border: `1px solid ${myReview ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 'var(--radius)', marginBottom: 14 }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
-                      {myReview ? '✏️ Edit Your Review' : '✍️ Write a Review'}
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {myReview ? <Pencil size={13} /> : <PenLine size={13} />} {myReview ? 'Edit Your Review' : 'Write a Review'}
                     </div>
                     <div style={{ marginBottom: 8 }}>
                       <Stars rating={reviewRating} size="lg" interactive onRate={setReviewRating} />
@@ -445,9 +463,14 @@ const Browse = () => {
                       onChange={e => setReviewComment(e.target.value)}
                       style={{ marginBottom: 8 }}
                     />
-                    {reviewError && <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginBottom: 6 }}>⚠️ {reviewError}</div>}
-                    <Button size="sm" onClick={handleSubmitReview} disabled={reviewSaving}>
-                      {reviewSaving ? '⏳ Saving…' : myReview ? '💾 Update' : '📝 Submit Review'}
+                    {reviewError && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <AlertTriangle size={13} /> {reviewError}
+                      </div>
+                    )}
+                    <Button size="sm" onClick={handleSubmitReview} disabled={reviewSaving}
+                      icon={reviewSaving ? <Hourglass size={13} /> : myReview ? <Save size={13} /> : <Send size={13} />}>
+                      {reviewSaving ? 'Saving…' : myReview ? 'Update' : 'Submit Review'}
                     </Button>
                   </div>
                 )}
@@ -525,8 +548,8 @@ const Browse = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowConfirmModal(false)}>Back</Button>
-            <Button onClick={handleBook} disabled={isBooking}>
-              {isBooking ? '⏳ Booking…' : '🎟️ Confirm Booking'}
+            <Button onClick={handleBook} disabled={isBooking} icon={isBooking ? <Hourglass size={14} /> : <Ticket size={14} />}>
+              {isBooking ? 'Booking…' : 'Confirm Booking'}
             </Button>
           </>
         }
@@ -545,7 +568,9 @@ const Browse = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
               {[
                 { label: 'Seats', value: `${chosenSeats.length} seat(s)` },
-                { label: 'Price', value: bookingSchedule.freeTickets ? '🎟️ FREE' : `RM ${(chosenSeats.length * 10).toFixed(2)}` },
+                { label: 'Price', value: bookingSchedule.freeTickets
+                    ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={14} /> FREE</span>
+                    : `RM ${(chosenSeats.length * 10).toFixed(2)}` },
               ].map(({ label, value }) => (
                 <div key={label} style={{ padding: '10px 12px', background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>

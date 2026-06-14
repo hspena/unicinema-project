@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { DEFAULT_VIEWS } from '../utils/helpers';
+import { Film } from '../utils/icons';
 
 const NotFound = () => {
   const { role, setView } = useAuth();
@@ -19,7 +20,7 @@ const NotFound = () => {
         fontFamily: 'var(--font-body)',
       }}
     >
-      <div style={{ fontSize: '5rem' }}>🎬</div>
+      <Film size={80} color="var(--gold)" />
       <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', color: 'var(--gold)' }}>
         404 — Scene Not Found
       </h1>

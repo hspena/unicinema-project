@@ -3,6 +3,7 @@ import { useAuth }  from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Toggle }   from '../components/ui';
 import { registerMoviegoer, isUsernameAvailable } from '../services/userService';
+import { Film, AlertTriangle, X, Check, Hourglass, CheckCircle2, ArrowRight } from '../utils/icons';
 
 type AuthMode = 'login' | 'register';
 
@@ -146,10 +147,10 @@ const Login = () => {
   };
 
   const usernameIndicator = () => {
-    if (usernameChecking) return { color: 'var(--text-muted)', text: '⏳ Checking…' };
-    if (usernameStatus === 'available') return { color: 'var(--success)', text: '✓ Available' };
-    if (usernameStatus === 'taken')     return { color: 'var(--danger)',  text: '✗ Taken' };
-    if (usernameStatus === 'invalid')   return { color: 'var(--warning)', text: '⚠ Invalid format' };
+    if (usernameChecking) return { color: 'var(--text-muted)', icon: Hourglass, text: 'Checking…' };
+    if (usernameStatus === 'available') return { color: 'var(--success)', icon: Check, text: 'Available' };
+    if (usernameStatus === 'taken')     return { color: 'var(--danger)',  icon: X, text: 'Taken' };
+    if (usernameStatus === 'invalid')   return { color: 'var(--warning)', icon: AlertTriangle, text: 'Invalid format' };
     return null;
   };
   const indicator = usernameIndicator();
@@ -159,7 +160,7 @@ const Login = () => {
       {/* Left panel */}
       <div className="login-left">
         <div className="login-left-content">
-          <div className="login-logo">🎬</div>
+          <div className="login-logo"><Film size={28} /></div>
           <h2>The ultimate cinema experience starts here.</h2>
           <p>A universal ticketing platform built for students, cinemas, and staff.</p>
           {FEATURES.map((f, i) => (
@@ -189,8 +190,8 @@ const Login = () => {
 
               {error && (
                 <div className="auth-error">
-                  <span>⚠️ {error}</span>
-                  <span style={{ cursor: 'pointer', fontWeight: 700 }} onClick={clearError}>✕</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {error}</span>
+                  <span style={{ cursor: 'pointer', fontWeight: 700 }} onClick={clearError}><X size={14} /></span>
                 </div>
               )}
 
@@ -212,7 +213,7 @@ const Login = () => {
                 style={{ width: '100%', justifyContent: 'center', opacity: isLoading ? 0.7 : 1, marginTop: 8 }}
                 onClick={handleLogin} disabled={isLoading}
               >
-                {isLoading ? '⏳ Signing in…' : 'Sign In'}
+                {isLoading ? <><Hourglass size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Signing in…</> : 'Sign In'}
               </button>
 
               <div style={{ marginTop: 14, fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
@@ -237,7 +238,7 @@ const Login = () => {
                   border: '1px solid rgba(76,175,130,0.3)',
                   borderRadius: 'var(--radius)',
                 }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>✅</div>
+                  <div style={{ marginBottom: 12, color: 'var(--success)', display: 'flex', justifyContent: 'center' }}><CheckCircle2 size={40} /></div>
                   <div style={{ fontWeight: 600, color: 'var(--success)', marginBottom: 6 }}>Account Created!</div>
                   <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)', marginBottom: 16 }}>
                     Welcome, <strong>{regDisplayName}</strong> (@{regUsername})!
@@ -245,15 +246,15 @@ const Login = () => {
                   </div>
                   <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}
                     onClick={() => { setEmail(regEmail); setPassword(regPass); switchMode('login'); }}>
-                    Go to Sign In →
+                    Go to Sign In <ArrowRight size={14} style={{ verticalAlign: -2, marginLeft: 4 }} />
                   </button>
                 </div>
               ) : (
                 <>
                   {regError && (
                     <div className="auth-error">
-                      <span>⚠️ {regError}</span>
-                      <span style={{ cursor: 'pointer', fontWeight: 700 }} onClick={() => setRegError('')}>✕</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {regError}</span>
+                      <span style={{ cursor: 'pointer', fontWeight: 700 }} onClick={() => setRegError('')}><X size={14} /></span>
                     </div>
                   )}
 
@@ -262,8 +263,8 @@ const Login = () => {
                     <label className="input-label">
                       Username *
                       {indicator && (
-                        <span style={{ marginLeft: 8, fontSize: '0.72rem', color: indicator.color }}>
-                          {indicator.text}
+                        <span style={{ marginLeft: 8, fontSize: '0.72rem', color: indicator.color, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                          <indicator.icon size={12} /> {indicator.text}
                         </span>
                       )}
                     </label>
@@ -320,7 +321,7 @@ const Login = () => {
                     background: 'var(--gold-dim)', borderRadius: 'var(--radius)',
                     border: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--text-muted)',
                   }}>
-                    🎬 You'll be registered as a <strong style={{ color: 'var(--gold)' }}>Moviegoer</strong>.
+                    <Film size={13} style={{ verticalAlign: -2, marginRight: 4 }} /> You'll be registered as a <strong style={{ color: 'var(--gold)' }}>Moviegoer</strong>.
                     For other roles, contact your admin.
                   </div>
 

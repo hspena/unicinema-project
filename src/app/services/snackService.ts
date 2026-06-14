@@ -70,11 +70,11 @@ export const SNACK_CATEGORIES: SnackCategory[] = [
 ];
 
 export const CATEGORY_ICONS: Record<SnackCategory, string> = {
-  Food:     '🍿',
-  Beverage: '🥤',
-  Combo:    '🎁',
-  Dessert:  '🍦',
-  Other:    '🛍️',
+  Food:     'popcorn',
+  Beverage: 'cup-soda',
+  Combo:    'gift',
+  Dessert:  'ice-cream',
+  Other:    'shopping-bag',
 };
 
 // ─── Seed default snacks (run once if snacks table is empty) ──────────────────
@@ -84,16 +84,16 @@ export const seedDefaultSnacks = async (): Promise<void> => {
   if (snap.exists()) return;
 
   const defaults: SnackPayload[] = [
-    { name: 'Large Popcorn',   category: 'Food',     price: 8.50,  stock: 150, emoji: '🍿', description: 'Buttered large popcorn',          available: true },
-    { name: 'Regular Popcorn', category: 'Food',     price: 5.50,  stock: 200, emoji: '🍿', description: 'Buttered regular popcorn',        available: true },
-    { name: 'Cola Drink',      category: 'Beverage', price: 4.50,  stock: 250, emoji: '🥤', description: 'Chilled cola, large cup',         available: true },
-    { name: 'Mineral Water',   category: 'Beverage', price: 2.50,  stock: 300, emoji: '💧', description: '500ml mineral water',             available: true },
-    { name: 'Nachos & Dip',    category: 'Food',     price: 7.00,  stock: 80,  emoji: '🌮', description: 'Crispy nachos with salsa dip',    available: true },
-    { name: 'Hot Dog',         category: 'Food',     price: 6.00,  stock: 60,  emoji: '🌭', description: 'Classic beef hot dog',            available: true },
-    { name: 'Chocolate Bar',   category: 'Dessert',  price: 3.50,  stock: 180, emoji: '🍫', description: 'Assorted chocolate bar',          available: true },
-    { name: 'Popcorn Combo',   category: 'Combo',    price: 12.00, stock: 100, emoji: '🎁', description: 'Large popcorn + cola drink',      available: true },
+    { name: 'Large Popcorn',   category: 'Food',     price: 8.50,  stock: 150, emoji: 'popcorn',      description: 'Buttered large popcorn',          available: true },
+    { name: 'Regular Popcorn', category: 'Food',     price: 5.50,  stock: 200, emoji: 'popcorn',      description: 'Buttered regular popcorn',        available: true },
+    { name: 'Cola Drink',      category: 'Beverage', price: 4.50,  stock: 250, emoji: 'cup-soda',     description: 'Chilled cola, large cup',         available: true },
+    { name: 'Mineral Water',   category: 'Beverage', price: 2.50,  stock: 300, emoji: 'droplet',      description: '500ml mineral water',             available: true },
+    { name: 'Nachos & Dip',    category: 'Food',     price: 7.00,  stock: 80,  emoji: 'pizza',        description: 'Crispy nachos with salsa dip',    available: true },
+    { name: 'Hot Dog',         category: 'Food',     price: 6.00,  stock: 60,  emoji: 'sandwich',     description: 'Classic beef hot dog',            available: true },
+    { name: 'Chocolate Bar',   category: 'Dessert',  price: 3.50,  stock: 180, emoji: 'candy',        description: 'Assorted chocolate bar',          available: true },
+    { name: 'Popcorn Combo',   category: 'Combo',    price: 12.00, stock: 100, emoji: 'gift',         description: 'Large popcorn + cola drink',      available: true },
   ];
 
   for (const s of defaults) await createSnack(s);
-  console.log('✅ Default snacks seeded.');
+  console.log('Default snacks seeded.');
 };

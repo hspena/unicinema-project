@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button, Modal } from '../../components/ui';
+import { Card, Badge, Button, Modal, IconPicker } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import {
-  Genre, GenrePayload, Movie, MoviePayload,
+  AlertTriangle, Search, Tags, Hourglass, Save, Film, IconGlyph, GENRE_ICON_KEYS,
+} from '../../utils/icons';
+import {
+  Genre, GenrePayload, Movie, MoviePayload, ContentRating, CONTENT_RATINGS,
   subscribeToGenres, subscribeToMovies,
   createGenre, updateGenre, deleteGenre,
   createMovie,  updateMovie,  deleteMovie,
@@ -11,21 +14,16 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const Stars = ({ rating }: { rating: number }) => {
-  const filled = Math.round(rating / 2);
-  return (
-    <span style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>
-      {'★'.repeat(filled)}{'☆'.repeat(5 - filled)}
-      <span style={{ color: 'var(--text-muted)', marginLeft: 5, fontSize: '0.75rem' }}>
-        {rating.toFixed(1)}
-      </span>
-    </span>
-  );
+const RatingBadge = ({ rating }: { rating: ContentRating }) => {
+  const variant: 'success' | 'gold' | 'danger' =
+    rating === 'U' || rating === 'PG' ? 'success' :
+    rating === 'PG-13' || rating === '16' ? 'gold' : 'danger';
+  return <Badge variant={variant}>{rating}</Badge>;
 };
 
 const emptyMovieForm = (): Omit<MoviePayload, 'createdBy'> => ({
   title: '', genreId: '', duration: 90, year: new Date().getFullYear(),
-  rating: 7.0, synopsis: '', director: '', cast: '', emoji: '', color: '',
+  rating: 'PG-13', synopsis: '', director: '', cast: '', emoji: '', color: '',
 });
 
 const emptyGenreForm = (): GenrePayload => ({
@@ -42,7 +40,7 @@ const GenreForm = ({
   error:   string;
 }) => (
   <>
-    {error && <div className="auth-error" style={{ marginBottom: 12 }}>⚠️ {error}</div>}
+    {error && <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {error}</div>}
 
     {/* Live preview */}
     <div style={{
@@ -54,9 +52,9 @@ const GenreForm = ({
         width: 52, height: 52, borderRadius: 'var(--radius)',
         background: form.color || '#1a1628',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '1.8rem', flexShrink: 0,
+        color: 'var(--gold)', flexShrink: 0,
       }}>
-        {form.emoji || '🎬'}
+        <IconGlyph iconKey={form.emoji} size={26} />
       </div>
       <div>
         <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
@@ -80,12 +78,11 @@ const GenreForm = ({
 
     <div className="input-row">
       <div className="input-group">
-        <label className="input-label">Default Emoji</label>
-        <input
-          className="input-field"
-          placeholder="🎬"
+        <label className="input-label">Default Icon</label>
+        <IconPicker
           value={form.emoji}
-          onChange={e => setForm(p => ({ ...p, emoji: e.target.value }))}
+          onChange={key => setForm(p => ({ ...p, emoji: key }))}
+          options={GENRE_ICON_KEYS}
         />
       </div>
       <div className="input-group">
@@ -124,17 +121,15 @@ const MovieForm = ({
 
   return (
     <>
-      {error && <div className="auth-error" style={{ marginBottom: 12 }}>⚠️ {error}</div>}
+      {error && <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {error}</div>}
 
       {/* Live preview */}
       <div className="mf-preview">
         <div
           className="mf-preview-poster"
-          style={{ background: form.color || selectedGenre?.color || '#1a1628' }}
+          style={{ background: form.color || selectedGenre?.color || '#1a1628', color: 'var(--gold)' }}
         >
-          <span style={{ fontSize: '2.2rem' }}>
-            {form.emoji || selectedGenre?.emoji || '🎬'}
-          </span>
+          <IconGlyph iconKey={form.emoji || selectedGenre?.emoji} size={36} />
         </div>
         <div className="mf-preview-info">
           <div className="mf-preview-title">{form.title || 'Movie Title'}</div>
@@ -142,7 +137,7 @@ const MovieForm = ({
             {form.year} · {form.duration} min
             {selectedGenre && <> · <Badge variant="gold">{selectedGenre.name}</Badge></>}
           </div>
-          <Stars rating={form.rating} />
+          <RatingBadge rating={form.rating} />
         </div>
       </div>
 
@@ -176,7 +171,7 @@ const MovieForm = ({
           >
             <option value="">Select genre…</option>
             {genres.map(g => (
-              <option key={g.id} value={g.id}>{g.emoji} {g.name}</option>
+              <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
         </div>
@@ -201,12 +196,16 @@ const MovieForm = ({
           />
         </div>
         <div className="input-group">
-          <label className="input-label">Rating (0–10)</label>
-          <input
-            className="input-field" type="number" min={0} max={10} step={0.1}
+          <label className="input-label">Content Rating *</label>
+          <select
+            className="select-field"
             value={form.rating}
-            onChange={e => setForm(p => ({ ...p, rating: parseFloat(e.target.value) || 0 }))}
-          />
+            onChange={e => setForm(p => ({ ...p, rating: e.target.value as ContentRating }))}
+          >
+            {CONTENT_RATINGS.map(r => (
+              <option key={r.value} value={r.value}>{r.label} — {r.description}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -231,13 +230,15 @@ const MovieForm = ({
       {/* Custom poster */}
       <div className="input-row">
         <div className="input-group">
-          <label className="input-label">Custom Emoji (optional)</label>
-          <input
-            className="input-field"
-            placeholder={selectedGenre?.emoji || '🎬'}
+          <label className="input-label">Custom Icon (optional)</label>
+          <IconPicker
             value={form.emoji}
-            onChange={e => setForm(p => ({ ...p, emoji: e.target.value }))}
+            onChange={key => setForm(p => ({ ...p, emoji: p.emoji === key ? '' : key }))}
+            options={GENRE_ICON_KEYS}
           />
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 5 }}>
+            Click to override the genre's default icon. Click again to clear.
+          </div>
         </div>
         <div className="input-group">
           <label className="input-label">Custom Color (optional)</label>
@@ -403,7 +404,7 @@ const MovieManagement = () => {
       const genre = genreById(movieForm.genreId);
       const payload: MoviePayload = {
         ...movieForm,
-        emoji:     movieForm.emoji || genre?.emoji || '🎬',
+        emoji:     movieForm.emoji || genre?.emoji || 'film',
         color:     movieForm.color || genre?.color || '#1a1628',
         createdBy: uid ?? 'unknown',
       };
@@ -438,10 +439,10 @@ const MovieManagement = () => {
       {/* Tabs */}
       <div className="rm-tabs" style={{ marginBottom: 20 }}>
         <button className={`rm-tab ${tab === 'movies' ? 'active' : ''}`} onClick={() => setTab('movies')}>
-          🎬 Movies ({movies.length})
+          <Film size={14} style={{ verticalAlign: -2, marginRight: 5 }} /> Movies ({movies.length})
         </button>
         <button className={`rm-tab ${tab === 'genres' ? 'active' : ''}`} onClick={() => setTab('genres')}>
-          🏷️ Genres ({genres.length})
+          <Tags size={14} style={{ verticalAlign: -2, marginRight: 5 }} /> Genres ({genres.length})
         </button>
       </div>
 
@@ -451,7 +452,7 @@ const MovieManagement = () => {
           {/* Toolbar */}
           <div className="table-toolbar" style={{ marginBottom: 16, borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
             <div className="search-wrap" style={{ flex: 1, minWidth: 180 }}>
-              <span className="search-icon">🔍</span>
+              <span className="search-icon"><Search size={14} /></span>
               <input
                 className="input-field"
                 placeholder="Search title, director, cast…"
@@ -466,7 +467,7 @@ const MovieManagement = () => {
             >
               <option value="All">All Genres</option>
               {genres.map(g => (
-                <option key={g.id} value={g.id}>{g.emoji} {g.name}</option>
+                <option key={g.id} value={g.id}>{g.name}</option>
               ))}
             </select>
             <Button icon="+" onClick={openAddMovie}>Add Movie</Button>
@@ -474,7 +475,7 @@ const MovieManagement = () => {
 
           {/* Genre filter pills */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-            {[{ id: 'All', name: 'All', emoji: '🎬' }, ...genres].map(g => {
+            {[{ id: 'All', name: 'All', emoji: 'film' }, ...genres].map(g => {
               const count = g.id === 'All' ? movies.length : movies.filter(m => m.genreId === g.id).length;
               if (g.id !== 'All' && count === 0) return null;
               return (
@@ -482,6 +483,7 @@ const MovieManagement = () => {
                   key={g.id}
                   onClick={() => setGenreFilter(g.id)}
                   style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
                     padding: '4px 12px', borderRadius: 99, cursor: 'pointer',
                     fontSize: '0.74rem', fontWeight: 500,
                     background: genreFilter === g.id ? 'var(--gold)' : 'var(--surface)',
@@ -489,7 +491,7 @@ const MovieManagement = () => {
                     border: '1px solid var(--border)', transition: 'all var(--transition)',
                   }}
                 >
-                  {g.emoji} {g.name} ({count})
+                  <IconGlyph iconKey={g.emoji} size={13} /> {g.name} ({count})
                 </div>
               );
             })}
@@ -498,7 +500,7 @@ const MovieManagement = () => {
           {/* Movie grid */}
           {filteredMovies.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">🎬</div>
+              <div className="empty-state-icon"><Film size={32} /></div>
               <div className="empty-state-text">
                 {movies.length === 0 ? 'No movies yet. Add one to get started.' : 'No movies match your search.'}
               </div>
@@ -514,7 +516,7 @@ const MovieManagement = () => {
                       style={{ background: m.color || genre?.color || '#1a1628', cursor: 'pointer' }}
                       onClick={() => setDetailMovie(m)}
                     >
-                      <span style={{ fontSize: '3.5rem' }}>{m.emoji || genre?.emoji || '🎬'}</span>
+                      <span style={{ color: 'var(--gold)' }}><IconGlyph iconKey={m.emoji || genre?.emoji} size={48} /></span>
                       <div className="movie-genre-tag">
                         <Badge variant="muted">{genre?.name ?? '—'}</Badge>
                       </div>
@@ -524,7 +526,7 @@ const MovieManagement = () => {
                       <div className="movie-meta">
                         {m.year} · {m.duration} min{m.director ? ` · ${m.director}` : ''}
                       </div>
-                      <Stars rating={m.rating} />
+                      <RatingBadge rating={m.rating} />
                       {m.synopsis && (
                         <div style={{
                           fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 6,
@@ -556,7 +558,7 @@ const MovieManagement = () => {
 
           {genres.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">🏷️</div>
+              <div className="empty-state-icon"><Tags size={32} /></div>
               <div className="empty-state-text">No genres yet.</div>
             </div>
           ) : (
@@ -566,7 +568,7 @@ const MovieManagement = () => {
                   <thead>
                     <tr>
                       <th>Genre</th>
-                      <th>Default Emoji</th>
+                      <th>Default Icon</th>
                       <th>Default Color</th>
                       <th>Movies</th>
                       <th>Actions</th>
@@ -583,14 +585,14 @@ const MovieManagement = () => {
                                 width: 36, height: 36, borderRadius: 6,
                                 background: g.color, display: 'flex',
                                 alignItems: 'center', justifyContent: 'center',
-                                fontSize: '1.2rem', flexShrink: 0,
+                                color: 'var(--gold)', flexShrink: 0,
                               }}>
-                                {g.emoji}
+                                <IconGlyph iconKey={g.emoji} size={18} />
                               </div>
                               <span style={{ fontWeight: 500 }}>{g.name}</span>
                             </div>
                           </td>
-                          <td style={{ fontSize: '1.4rem' }}>{g.emoji}</td>
+                          <td style={{ color: 'var(--gold)' }}><IconGlyph iconKey={g.emoji} size={20} /></td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <div style={{
@@ -630,8 +632,8 @@ const MovieManagement = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAddGenre(false)}>Cancel</Button>
-            <Button onClick={handleSaveGenre} disabled={genreSaving}>
-              {genreSaving ? '⏳ Saving…' : '💾 Save Genre'}
+            <Button onClick={handleSaveGenre} disabled={genreSaving} icon={genreSaving ? <Hourglass size={14} /> : <Save size={14} />}>
+              {genreSaving ? 'Saving…' : 'Save Genre'}
             </Button>
           </>
         }
@@ -647,8 +649,8 @@ const MovieManagement = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setEditGenre(null)}>Cancel</Button>
-            <Button onClick={handleSaveGenre} disabled={genreSaving}>
-              {genreSaving ? '⏳ Saving…' : '💾 Save Changes'}
+            <Button onClick={handleSaveGenre} disabled={genreSaving} icon={genreSaving ? <Hourglass size={14} /> : <Save size={14} />}>
+              {genreSaving ? 'Saving…' : 'Save Changes'}
             </Button>
           </>
         }
@@ -664,8 +666,8 @@ const MovieManagement = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAddMovie(false)}>Cancel</Button>
-            <Button onClick={handleSaveMovie} disabled={movieSaving}>
-              {movieSaving ? '⏳ Adding…' : '🎬 Add Movie'}
+            <Button onClick={handleSaveMovie} disabled={movieSaving} icon={movieSaving ? <Hourglass size={14} /> : <Film size={14} />}>
+              {movieSaving ? 'Adding…' : 'Add Movie'}
             </Button>
           </>
         }
@@ -681,8 +683,8 @@ const MovieManagement = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setEditMovie(null)}>Cancel</Button>
-            <Button onClick={handleSaveMovie} disabled={movieSaving}>
-              {movieSaving ? '⏳ Saving…' : '💾 Save Changes'}
+            <Button onClick={handleSaveMovie} disabled={movieSaving} icon={movieSaving ? <Hourglass size={14} /> : <Save size={14} />}>
+              {movieSaving ? 'Saving…' : 'Save Changes'}
             </Button>
           </>
         }
@@ -711,9 +713,9 @@ const MovieManagement = () => {
                 <div style={{
                   width: 80, height: 80, borderRadius: 'var(--radius)', flexShrink: 0,
                   background: detailMovie.color || genre?.color || '#1a1628',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)',
                 }}>
-                  {detailMovie.emoji || genre?.emoji || '🎬'}
+                  <IconGlyph iconKey={detailMovie.emoji || genre?.emoji} size={36} />
                 </div>
                 <div>
                   <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700 }}>
@@ -723,7 +725,7 @@ const MovieManagement = () => {
                     {detailMovie.year} · {detailMovie.duration} min
                     {genre && <> · <Badge variant="gold">{genre.name}</Badge></>}
                   </div>
-                  <Stars rating={detailMovie.rating} />
+                  <RatingBadge rating={detailMovie.rating} />
                 </div>
               </div>
               {detailMovie.synopsis && (

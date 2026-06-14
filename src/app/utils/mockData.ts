@@ -1,12 +1,12 @@
 import { Movie, Room, ScheduleSlot, Snack, User } from '../types';
 
 export const MOVIES: Movie[] = [
-  { id: 1, title: 'Starfall Chronicles', genre: 'Sci-Fi',     duration: 128, rating: 8.4, emoji: '🚀', year: 2025, color: '#162040' },
-  { id: 2, title: 'The Last Ember',       genre: 'Drama',     duration: 112, rating: 7.9, emoji: '🌊', year: 2025, color: '#1a1628' },
-  { id: 3, title: 'Neon Requiem',         genre: 'Thriller',  duration: 105, rating: 8.1, emoji: '🌃', year: 2025, color: '#16281e' },
-  { id: 4, title: 'Whispers in the Dark', genre: 'Horror',    duration: 98,  rating: 7.5, emoji: '👁️', year: 2024, color: '#281620' },
-  { id: 5, title: 'Golden Horizon',       genre: 'Adventure', duration: 135, rating: 8.7, emoji: '🏔️', year: 2025, color: '#281e10' },
-  { id: 6, title: 'Echo Chamber',         genre: 'Comedy',    duration: 94,  rating: 7.2, emoji: '😂', year: 2025, color: '#162028' },
+  { id: 1, title: 'Starfall Chronicles', genre: 'Sci-Fi',     duration: 128, rating: 8.4, emoji: 'rocket',   year: 2025, color: '#162040' },
+  { id: 2, title: 'The Last Ember',       genre: 'Drama',     duration: 112, rating: 7.9, emoji: 'waves',    year: 2025, color: '#1a1628' },
+  { id: 3, title: 'Neon Requiem',         genre: 'Thriller',  duration: 105, rating: 8.1, emoji: 'eye',      year: 2025, color: '#16281e' },
+  { id: 4, title: 'Whispers in the Dark', genre: 'Horror',    duration: 98,  rating: 7.5, emoji: 'ghost',    year: 2024, color: '#281620' },
+  { id: 5, title: 'Golden Horizon',       genre: 'Adventure', duration: 135, rating: 8.7, emoji: 'mountain', year: 2025, color: '#281e10' },
+  { id: 6, title: 'Echo Chamber',         genre: 'Comedy',    duration: 94,  rating: 7.2, emoji: 'laugh',    year: 2025, color: '#162028' },
 ];
 
 export const USERS: User[] = [
@@ -35,10 +35,10 @@ export const SCHEDULE: ScheduleSlot[] = [
 ];
 
 export const SNACKS: Snack[] = [
-  { id: 1, name: 'Large Popcorn',  price: 8.50, emoji: '🍿', stock: 140 },
-  { id: 2, name: 'Cola Drink',     price: 4.50, emoji: '🥤', stock: 200 },
-  { id: 3, name: 'Nachos & Dip',   price: 7.00, emoji: '🌮', stock: 80  },
-  { id: 4, name: 'Chocolate Bar',  price: 3.50, emoji: '🍫', stock: 160 },
-  { id: 5, name: 'Hot Dog',        price: 6.00, emoji: '🌭', stock: 60  },
-  { id: 6, name: 'Mineral Water',  price: 2.50, emoji: '💧', stock: 300 },
+  { id: 1, name: 'Large Popcorn',  price: 8.50, emoji: 'popcorn',  stock: 140 },
+  { id: 2, name: 'Cola Drink',     price: 4.50, emoji: 'cup-soda', stock: 200 },
+  { id: 3, name: 'Nachos & Dip',   price: 7.00, emoji: 'pizza',    stock: 80  },
+  { id: 4, name: 'Chocolate Bar',  price: 3.50, emoji: 'candy',    stock: 160 },
+  { id: 5, name: 'Hot Dog',        price: 6.00, emoji: 'sandwich', stock: 60  },
+  { id: 6, name: 'Mineral Water',  price: 2.50, emoji: 'droplet',  stock: 300 },
 ];

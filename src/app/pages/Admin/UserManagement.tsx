@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Modal, InputField, SelectField } from '../../components/ui';
 import { User, UserRole } from '../../types';
 import { getRoleBadgeVariant } from '../../utils/helpers';
+import { Search, Trash2, Hourglass, AlertTriangle, Plus, ArrowUp } from '../../utils/icons';
 import {
   subscribeToUsers,
   createUser,
@@ -82,7 +83,7 @@ const UserManagement = () => {
         {/* Toolbar */}
         <div className="table-toolbar">
           <div className="search-wrap" style={{ flex: 1, minWidth: 200 }}>
-            <span className="search-icon">🔍</span>
+            <span className="search-icon"><Search size={14} /></span>
             <input
               className="input-field"
               placeholder="Search by name, email, role or ID…"
@@ -100,7 +101,7 @@ const UserManagement = () => {
               <option key={r}>{r}</option>
             ))}
           </select>
-          <Button icon="+" onClick={() => setShowModal(true)}>Add User</Button>
+          <Button icon={<Plus size={14} />} onClick={() => setShowModal(true)}>Add User</Button>
         </div>
 
         {/* Table */}
@@ -110,7 +111,7 @@ const UserManagement = () => {
               <tr>
                 {['ID', 'Name', 'Email', 'Role', 'Status', 'Joined', 'Actions'].map((col) => (
                   <th key={col} onClick={() => setSortCol(col.toLowerCase())}>
-                    {col} {sortCol === col.toLowerCase() && '↑'}
+                    {col} {sortCol === col.toLowerCase() && <ArrowUp size={11} style={{ verticalAlign: -1 }} />}
                   </th>
                 ))}
               </tr>
@@ -138,7 +139,7 @@ const UserManagement = () => {
                   <td style={{ color: 'var(--text-muted)' }}>{u.joined}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <Button variant="danger" size="sm" icon="🗑️" onClick={() => handleDelete(u.id)}>Delete</Button>
+                      <Button variant="danger" size="sm" icon={<Trash2 size={13} />} onClick={() => handleDelete(u.id)}>Delete</Button>
                     </div>
                   </td>
                 </tr>
@@ -149,7 +150,7 @@ const UserManagement = () => {
 
         {filtered.length === 0 && (
           <div className="empty-state">
-            <div className="empty-state-icon">{users.length === 0 ? '⏳' : '🔍'}</div>
+            <div className="empty-state-icon">{users.length === 0 ? <Hourglass size={28} /> : <Search size={28} />}</div>
             <div className="empty-state-text">
               {users.length === 0 ? 'Loading users…' : 'No users match your search.'}
             </div>
@@ -172,8 +173,8 @@ const UserManagement = () => {
         }
       >
         {formError && (
-          <div style={{ padding: '8px 12px', marginBottom: 12, background: 'rgba(224,92,92,0.12)', border: '1px solid rgba(224,92,92,0.3)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '0.82rem' }}>
-            ⚠️ {formError}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', marginBottom: 12, background: 'rgba(224,92,92,0.12)', border: '1px solid rgba(224,92,92,0.3)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '0.82rem' }}>
+            <AlertTriangle size={14} /> {formError}
           </div>
         )}
         <div className="input-row">

@@ -80,6 +80,17 @@ export const getBookedSeats = async (scheduleId: string): Promise<string[]> => {
     .flatMap(b => b.seats);
 };
 
+export const subscribeToAllBookings = (
+  callback: (bookings: Booking[]) => void
+): (() => void) => {
+  const dbRef = bookingsRef();
+  onValue(dbRef, (snap) => {
+    if (!snap.exists()) { callback([]); return; }
+    callback(Object.values(snap.val()) as Booking[]);
+  });
+  return () => off(dbRef);
+};
+
 export const subscribeToRoomBookings = (
   roomId: string,
   callback: (bookings: Booking[]) => void

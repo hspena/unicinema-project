@@ -14,6 +14,19 @@ export interface Genre {
 
 export type GenrePayload = Omit<Genre, 'id'>;
 
+// ─── Content Rating ───────────────────────────────────────────────────────────
+
+export type ContentRating = 'U' | 'PG' | 'PG-13' | '16' | '18' | 'NC-17';
+
+export const CONTENT_RATINGS: { value: ContentRating; label: string; description: string }[] = [
+  { value: 'U',     label: 'U',     description: 'Suitable for all ages' },
+  { value: 'PG',    label: 'PG',    description: 'Parental guidance suggested' },
+  { value: 'PG-13', label: 'PG-13', description: 'Parents strongly cautioned — under 13' },
+  { value: '16',    label: '16',    description: 'Restricted to ages 16 and above' },
+  { value: '18',    label: '18',    description: 'Restricted to ages 18 and above' },
+  { value: 'NC-17', label: 'NC-17', description: 'Adults only — no one 17 and under admitted' },
+];
+
 // ─── Movie Types ──────────────────────────────────────────────────────────────
 
 export interface Movie {
@@ -22,7 +35,7 @@ export interface Movie {
   genreId:   string;   // references Genre.id
   duration:  number;
   year:      number;
-  rating:    number;   // 0–10
+  rating:    ContentRating;
   synopsis:  string;
   director:  string;
   cast:      string;   // comma-separated
@@ -109,18 +122,18 @@ export const seedDefaultGenres = async (): Promise<void> => {
   if (snap.exists()) return; // already seeded
 
   const defaults: GenrePayload[] = [
-    { name: 'Action',      emoji: '💥', color: '#281610' },
-    { name: 'Drama',       emoji: '🌊', color: '#1a1628' },
-    { name: 'Sci-Fi',      emoji: '🚀', color: '#162040' },
-    { name: 'Comedy',      emoji: '😂', color: '#162028' },
-    { name: 'Horror',      emoji: '👁️', color: '#281620' },
-    { name: 'Thriller',    emoji: '🌃', color: '#16281e' },
-    { name: 'Adventure',   emoji: '🏔️', color: '#281e10' },
-    { name: 'Romance',     emoji: '🌹', color: '#28101e' },
-    { name: 'Animation',   emoji: '✨', color: '#101e28' },
-    { name: 'Documentary', emoji: '🎙️', color: '#1e2810' },
+    { name: 'Action',      emoji: 'flame',     color: '#281610' },
+    { name: 'Drama',       emoji: 'waves',     color: '#1a1628' },
+    { name: 'Sci-Fi',      emoji: 'rocket',    color: '#162040' },
+    { name: 'Comedy',      emoji: 'laugh',     color: '#162028' },
+    { name: 'Horror',      emoji: 'ghost',     color: '#281620' },
+    { name: 'Thriller',    emoji: 'eye',       color: '#16281e' },
+    { name: 'Adventure',   emoji: 'mountain',  color: '#281e10' },
+    { name: 'Romance',     emoji: 'heart',     color: '#28101e' },
+    { name: 'Animation',   emoji: 'sparkles',  color: '#101e28' },
+    { name: 'Documentary', emoji: 'mic',       color: '#1e2810' },
   ];
 
   for (const g of defaults) await createGenre(g);
-  console.log('✅ Default genres seeded.');
+  console.log('Default genres seeded.');
 };

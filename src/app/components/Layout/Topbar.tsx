@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth }  from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { Menu, Sun, Moon, Bell, Film, Ticket } from '../../utils/icons';
+import { ROLE_ICON_COMPONENTS } from '../../utils/icons';
 
 const PAGE_TITLES: Record<string, string> = {
   dashboard: 'Dashboard',      users: 'User Management',
@@ -37,10 +39,7 @@ const Topbar = ({ onMenuClick }: TopbarProps) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const roleAvatar =
-    role === 'Admin'       ? '👑'  :
-    role === 'Cinema Room' ? '🏟️' :
-    role === 'Staff'       ? '👤'  : '🎬';
+  const RoleAvatarIcon = ROLE_ICON_COMPONENTS[role] ?? Film;
 
   return (
     <header className="topbar">
@@ -52,7 +51,7 @@ const Topbar = ({ onMenuClick }: TopbarProps) => {
           onClick={onMenuClick}
           aria-label="Open menu"
         >
-          ☰
+          <Menu size={20} />
         </button>
         <span className="topbar-title">{title}</span>
       </div>
@@ -66,7 +65,7 @@ const Topbar = ({ onMenuClick }: TopbarProps) => {
           onClick={() => setDarkMode(!darkMode)}
           title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-          {darkMode ? '☀️' : '🌙'}
+          {darkMode ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
         {/* Notifications */}
@@ -76,7 +75,7 @@ const Topbar = ({ onMenuClick }: TopbarProps) => {
             onClick={() => setShowNotif(p => !p)}
             title="Notifications"
           >
-            🔔
+            <Bell size={18} />
             <span className="notif-badge" />
           </button>
 
@@ -90,11 +89,11 @@ const Topbar = ({ onMenuClick }: TopbarProps) => {
               </div>
 
               {[
-                { icon: '🎬', text: 'New movie added to the catalogue', time: 'Just now'    },
-                { icon: '🎟️', text: 'Your ticket has been confirmed',   time: '5 min ago'  },
+                { icon: Film,   text: 'New movie added to the catalogue', time: 'Just now'    },
+                { icon: Ticket, text: 'Your ticket has been confirmed',   time: '5 min ago'  },
               ].map((n, i) => (
                 <div key={i} className="notif-item">
-                  <div className="notif-icon-wrap">{n.icon}</div>
+                  <div className="notif-icon-wrap"><n.icon size={16} /></div>
                   <div>
                     <div className="notif-text">{n.text}</div>
                     <div className="notif-time">{n.time}</div>
@@ -109,7 +108,7 @@ const Topbar = ({ onMenuClick }: TopbarProps) => {
 
         {/* Avatar */}
         <div className="topbar-avatar" title={role}>
-          {roleAvatar}
+          <RoleAvatarIcon size={17} />
         </div>
       </div>
     </header>

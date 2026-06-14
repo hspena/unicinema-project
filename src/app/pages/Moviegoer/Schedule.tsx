@@ -8,6 +8,9 @@ import {
   subscribeToAllSchedules,
   formatDate, todayString,
 } from '../../services/scheduleService';
+import {
+  IconGlyph, CircleDot, Hourglass, CheckCircle2, XCircle, Folder, Calendar,
+} from '../../utils/icons';
 
 // ─── Time-bucket helper ───────────────────────────────────────────────────────
 
@@ -30,10 +33,10 @@ const getBucket = (date: string, startTime: string, endTime: string): TimeBucket
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const statusConfig = {
-  running:   { variant: 'success' as const, label: '🔴 Now Playing' },
-  upcoming:  { variant: 'info'    as const, label: '⏳ Upcoming'    },
-  completed: { variant: 'muted'   as const, label: '✅ Completed'   },
-  cancelled: { variant: 'danger'  as const, label: '❌ Cancelled'   },
+  running:   { variant: 'success' as const, label: 'Now Playing', icon: <CircleDot size={11} /> },
+  upcoming:  { variant: 'info'    as const, label: 'Upcoming',    icon: <Hourglass size={11} /> },
+  completed: { variant: 'muted'   as const, label: 'Completed',   icon: <CheckCircle2 size={11} /> },
+  cancelled: { variant: 'danger'  as const, label: 'Cancelled',   icon: <XCircle size={11} /> },
 };
 
 const getStatus = (date: string, start: string, end: string) => {
@@ -50,7 +53,7 @@ const getStatus = (date: string, start: string, end: string) => {
 const FilterBtn = ({
   label, active, onClick, count,
 }: {
-  label: string; active: boolean; onClick: () => void; count: number;
+  label: React.ReactNode; active: boolean; onClick: () => void; count: number;
 }) => (
   <button
     onClick={onClick}
@@ -135,20 +138,20 @@ const SchedulePage = () => {
         {/* Moviegoers cannot see past */}
         {!isMoviegoer && (
           <FilterBtn
-            label="📁 Past"
+            label={<><Folder size={13} /> Past</>}
             active={bucket === 'past'}
             onClick={() => setBucket('past')}
             count={pastCount}
           />
         )}
         <FilterBtn
-          label="🔴 Today"
+          label={<><CircleDot size={13} /> Today</>}
           active={bucket === 'today'}
           onClick={() => setBucket('today')}
           count={todayCount}
         />
         <FilterBtn
-          label="⏳ Upcoming"
+          label={<><Hourglass size={13} /> Upcoming</>}
           active={bucket === 'upcoming'}
           onClick={() => setBucket('upcoming')}
           count={upcomingCount}
@@ -166,7 +169,7 @@ const SchedulePage = () => {
       {byRoom.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">
-            {bucket === 'past' ? '📁' : bucket === 'today' ? '📅' : '⏳'}
+            {bucket === 'past' ? <Folder size={32} /> : bucket === 'today' ? <Calendar size={32} /> : <Hourglass size={32} />}
           </div>
           <div className="empty-state-text">
             {schedules.length === 0
@@ -207,8 +210,9 @@ const SchedulePage = () => {
                         textTransform: 'uppercase', letterSpacing: '0.07em',
                         marginBottom: 8, marginTop: 10,
                         paddingBottom: 4, borderBottom: '1px solid var(--border)',
+                        display: 'flex', alignItems: 'center', gap: 5,
                       }}>
-                        {date === todayString() ? '📅 Today' : formatDate(date)}
+                        {date === todayString() ? <><Calendar size={11} /> Today</> : formatDate(date)}
                       </div>
                     )}
 
@@ -218,7 +222,7 @@ const SchedulePage = () => {
                         const movie  = movies.find(m => m.id === s.movieId);
                         const genre  = genres.find(g => g.id === movie?.genreId);
                         const status = getStatus(s.date, s.startTime, s.endTime);
-                        const { variant, label } = statusConfig[status];
+                        const { variant, label, icon } = statusConfig[status];
 
                         return (
                           <div key={s.id} className="schedule-slot" style={{
@@ -229,9 +233,8 @@ const SchedulePage = () => {
                               width: 44, height: 44, borderRadius: 8, flexShrink: 0,
                               background: movie?.color || genre?.color || '#1a1628',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: '1.4rem',
                             }}>
-                              {movie?.emoji || genre?.emoji || '🎬'}
+                              <IconGlyph iconKey={movie?.emoji || genre?.emoji} size={22} />
                             </div>
 
                             <div className="schedule-movie" style={{ flex: 1 }}>
@@ -252,7 +255,7 @@ const SchedulePage = () => {
                               </div>
                             </div>
 
-                            <Badge variant={variant}>{label}</Badge>
+                            <Badge variant={variant} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{icon} {label}</Badge>
                           </div>
                         );
                       })}

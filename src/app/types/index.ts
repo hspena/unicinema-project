@@ -77,8 +77,10 @@ export interface Ticket {
 }
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
+import type { LucideIcon } from 'lucide-react';
+
 export interface NavItem {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   view: string;
   badge?: string;

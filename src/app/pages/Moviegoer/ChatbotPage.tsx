@@ -3,6 +3,9 @@ import { useAuth } from '../../context/AuthContext';
 import { subscribeToMovies, subscribeToGenres, Movie, Genre } from '../../services/movieService';
 import { getUserById } from '../../services/userService';
 import { askCineBot, ChatTurn, GeminiError } from '../../services/geminiService';
+import { Badge } from '../../components/ui';
+import { IconGlyph, Bot, Send } from '../../utils/icons';
+import type { ContentRating } from '../../services/movieService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +34,7 @@ const buildSystemPrompt = (movies: Movie[], genres: Genre[], userName: string) =
   const catalogue = movies.length === 0
     ? '(The catalogue is currently empty — no movies are available to recommend.)'
     : movies.map(m =>
-        `- "${m.title}" — ${genreName(m.genreId)} · ${m.year} · ${m.duration} min · ${m.rating}/10 — ${m.synopsis || 'No synopsis available.'}`
+        `- "${m.title}" — ${genreName(m.genreId)} · ${m.year} · ${m.duration} min · Rated ${m.rating} — ${m.synopsis || 'No synopsis available.'}`
       ).join('\n');
 
   return `You are CineBot, a friendly and knowledgeable AI movie advisor for UniCinema, a university cinema's ticket-booking platform. You're chatting with ${userName || 'a moviegoer'}.
@@ -44,23 +47,21 @@ ${catalogue}
 GENRES AVAILABLE: ${genres.map(g => g.name).join(', ') || 'none'}
 
 Guidelines:
-- Be warm, concise (2-4 sentences), and conversational. Light emoji use is fine.
+- Be warm, concise (2-4 sentences), and conversational. Do not use emoji — the interface shows icons instead, so plain text reads best.
 - When you recommend movies, put their EXACT titles (character-for-character matches from the catalogue) in "movieTitles" so the app can render rich cards with synopsis/rating — don't restate the synopsis in your reply text, just talk about why you picked them.
 - Recommend at most 3 movies at once, and only ones from the catalogue.
 - If nothing in the catalogue fits the request, say so honestly, leave "movieTitles" empty, and suggest trying a different genre or mood.
-- Always include 2-4 short "suggestions" (quick-reply chip labels, each under 30 characters, optionally with a leading emoji) for what the user might want to say next, e.g. "🎭 Different genre", "⭐ Top rated", "🎲 Surprise me".
+- Always include 2-4 short "suggestions" (quick-reply chip labels, each under 30 characters, plain text without emoji) for what the user might want to say next, e.g. "Different genre", "Top rated", "Surprise me".
 - If asked about something unrelated to movies, cinema, or this app, gently steer back to helping them find something to watch.
 - Respond ONLY with a JSON object matching the required schema (reply, movieTitles, suggestions) — no extra commentary.`;
 };
 
-// ─── Stars ────────────────────────────────────────────────────────────────────
-const Stars = ({ rating }: { rating: number }) => {
-  const filled = Math.round(rating / 2);
-  return (
-    <span style={{ color: 'var(--gold)', fontSize: '0.75rem' }}>
-      {'★'.repeat(filled)}{'☆'.repeat(5 - filled)}
-    </span>
-  );
+// ─── Rating badge ─────────────────────────────────────────────────────────────
+const RatingBadge = ({ rating }: { rating: ContentRating }) => {
+  const variant: 'success' | 'gold' | 'danger' =
+    rating === 'U' || rating === 'PG' ? 'success' :
+    rating === 'PG-13' || rating === '16' ? 'gold' : 'danger';
+  return <Badge variant={variant} style={{ fontSize: '0.65rem' }}>{rating}</Badge>;
 };
 
 // ─── Movie Card inside chat ────────────────────────────────────────────────────
@@ -74,9 +75,8 @@ const ChatMovieCard = ({ movie, genre }: { movie: Movie; genre?: Genre }) => (
       width: 48, height: 48, borderRadius: 8, flexShrink: 0,
       background: movie.color || genre?.color || '#1a1628',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: '1.6rem',
     }}>
-      {movie.emoji || genre?.emoji || '🎬'}
+      <IconGlyph iconKey={movie.emoji || genre?.emoji} size={24} />
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontWeight: 600, fontSize: '0.84rem', color: 'var(--text-primary)' }}>
@@ -85,7 +85,7 @@ const ChatMovieCard = ({ movie, genre }: { movie: Movie; genre?: Genre }) => (
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '2px 0' }}>
         {movie.year} · {movie.duration} min · {genre?.name ?? '—'}
       </div>
-      <Stars rating={movie.rating / 2} />
+      <RatingBadge rating={movie.rating} />
       {movie.synopsis && (
         <div style={{
           fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 4,
@@ -149,8 +149,8 @@ const ChatbotPage = () => {
     if (messages.length > 0) return; // already started
     const name = userName || 'there';
     const text =
-      `Hey ${name}! 👋 I'm CineBot, your AI-powered movie advisor. Tell me what you're in the mood for — a genre, a vibe, an actor — and I'll find something from our catalogue for you. Or just pick an option below to get started!`;
-    const chips = ['🎬 Recommend me a movie', '🎭 Browse by genre', '⭐ Show me top rated', '🎲 Surprise me!'];
+      `Hey ${name}! I'm CineBot, your AI-powered movie advisor. Tell me what you're in the mood for — a genre, a vibe, an actor — and I'll find something from our catalogue for you. Or just pick an option below to get started!`;
+    const chips = ['Recommend me a movie', 'Browse by genre', 'Show me top rated', 'Surprise me!'];
     setMessages([newMsg('bot', text, { chips })]);
     historyRef.current = [{ role: 'model', text }];
   }, [userName]);
@@ -190,7 +190,7 @@ const ChatbotPage = () => {
       const message = err instanceof GeminiError
         ? err.message
         : "I'm having trouble connecting right now — please try again in a moment.";
-      setMessages(prev => [...prev, newMsg('bot', `😅 ${message}`)]);
+      setMessages(prev => [...prev, newMsg('bot', message)]);
     }
 
     setInputLocked(false);
@@ -226,8 +226,8 @@ const ChatbotPage = () => {
           width: 42, height: 42, borderRadius: '50%',
           background: 'linear-gradient(135deg, var(--gold), var(--gold-light))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1.3rem', flexShrink: 0,
-        }}>🤖</div>
+          color: 'var(--navy)', flexShrink: 0,
+        }}><Bot size={20} /></div>
         <div>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1rem' }}>
             CineBot
@@ -253,15 +253,15 @@ const ChatbotPage = () => {
           <div key={msg.id} style={{
             display: 'flex',
             flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-            alignItems: 'flex-end', gap: 8,
+            alignItems: 'flex-start', gap: 8,
           }}>
             {/* Avatar */}
             {msg.role === 'bot' && (
               <div style={{
                 width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
                 background: 'linear-gradient(135deg, var(--gold), var(--gold-light))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem',
-              }}>🤖</div>
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)',
+              }}><Bot size={15} /></div>
             )}
 
             <div style={{ maxWidth: '75%', display: 'flex', flexDirection: 'column', gap: 8,
@@ -333,8 +333,8 @@ const ChatbotPage = () => {
             <div style={{
               width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
               background: 'linear-gradient(135deg, var(--gold), var(--gold-light))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem',
-            }}>🤖</div>
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--navy)',
+            }}><Bot size={15} /></div>
             <div style={{
               padding: '10px 14px',
               background: 'var(--surface)', border: '1px solid var(--border)',
@@ -378,11 +378,11 @@ const ChatbotPage = () => {
             border: '1px solid var(--border)',
             color: userInput.trim() && !inputLocked ? 'var(--navy)' : 'var(--text-muted)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.1rem', cursor: userInput.trim() && !inputLocked ? 'pointer' : 'not-allowed',
+            cursor: userInput.trim() && !inputLocked ? 'pointer' : 'not-allowed',
             transition: 'all var(--transition)',
           }}
         >
-          ➤
+          <Send size={16} />
         </button>
       </div>
     </div>

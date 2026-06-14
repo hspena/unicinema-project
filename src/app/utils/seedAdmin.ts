@@ -29,15 +29,15 @@ export const runSeedAdmin = async () => {
       password: ADMIN_PASSWORD,
       role:     'Admin',
     });
-    console.log('✅ Admin user created successfully!');
+    console.log('Admin user created successfully!');
     console.log(`   Email:    ${ADMIN_EMAIL}`);
     console.log(`   Password: ${ADMIN_PASSWORD}`);
-    console.log('   ⚠️  Remove runSeedAdmin() from index.tsx now!');
+    console.log('   Remove runSeedAdmin() from index.tsx now!');
   } catch (err: any) {
     if (err.code === 'auth/email-already-in-use') {
-      console.log('ℹ️  Admin already exists — no action needed.');
+      console.log('Admin already exists — no action needed.');
     } else {
-      console.error('❌ Seed failed:', err.message);
+      console.error('Seed failed:', err.message);
     }
   }
 };

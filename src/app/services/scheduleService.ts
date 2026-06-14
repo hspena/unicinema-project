@@ -119,8 +119,17 @@ export const computeEndTime = (startTime: string, durationMinutes: number): stri
   return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 };
 
-export const todayString = (): string =>
-  new Date().toISOString().split('T')[0];
+// Returns the LOCAL calendar date as 'YYYY-MM-DD'. Deliberately avoids
+// `toISOString()`, which returns the UTC date — in timezones ahead of UTC
+// (e.g. UTC+8), that rolls over to "yesterday" during local early-morning
+// hours and throws off date comparisons against locally-entered schedules.
+export const todayString = (): string => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 export const formatDate = (dateStr: string): string => {
   const d = new Date(dateStr + 'T00:00:00');

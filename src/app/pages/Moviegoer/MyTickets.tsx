@@ -8,6 +8,10 @@ import {
   getUserReviewForMovie, subscribeToMovieReviews,
 } from '../../services/reviewService';
 import { getUserById } from '../../services/userService';
+import {
+  IconGlyph, Hourglass, CheckCircle2, XCircle, Save, Send, Star,
+  AlertTriangle, Ticket, Pencil,
+} from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,12 +43,12 @@ const Stars = ({ rating, interactive = false, onRate, size = 'md' }: {
 
 const statusBadge = (status: Booking['status']) => {
   const map = {
-    'confirmed':  { variant: 'info'    as const, label: '⏳ Confirmed'   },
-    'checked-in': { variant: 'success' as const, label: '✅ Attended'    },
-    'cancelled':  { variant: 'danger'  as const, label: '❌ Cancelled'   },
+    'confirmed':  { variant: 'info'    as const, label: 'Confirmed', icon: <Hourglass size={12} /> },
+    'checked-in': { variant: 'success' as const, label: 'Attended',  icon: <CheckCircle2 size={12} /> },
+    'cancelled':  { variant: 'danger'  as const, label: 'Cancelled', icon: <XCircle size={12} /> },
   };
-  const { variant, label } = map[status];
-  return <Badge variant={variant}>{label}</Badge>;
+  const { variant, label, icon } = map[status];
+  return <Badge variant={variant} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{icon} {label}</Badge>;
 };
 
 // ─── Review Modal ─────────────────────────────────────────────────────────────
@@ -119,8 +123,9 @@ const ReviewModal = ({
           <>
             {existing && <Button variant="danger" onClick={handleDelete}>Delete Review</Button>}
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? '⏳ Saving…' : existing ? '💾 Update' : '📝 Submit'}
+            <Button onClick={handleSave} disabled={saving}
+              icon={saving ? <Hourglass size={13} /> : existing ? <Save size={13} /> : <Send size={13} />}>
+              {saving ? 'Saving…' : existing ? 'Update' : 'Submit'}
             </Button>
           </>
         )
@@ -128,7 +133,7 @@ const ReviewModal = ({
     >
       {success ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>⭐</div>
+          <div style={{ marginBottom: 12, color: 'var(--gold)' }}><Star size={36} /></div>
           <div style={{ fontWeight: 600, color: 'var(--success)', marginBottom: 6 }}>
             {existing ? 'Review Updated!' : 'Review Submitted!'}
           </div>
@@ -145,7 +150,7 @@ const ReviewModal = ({
               background: 'var(--navy)', borderRadius: 'var(--radius)',
               border: '1px solid var(--border)', marginBottom: 18,
             }}>
-              <span style={{ fontSize: '2rem' }}>{movie.emoji}</span>
+              <IconGlyph iconKey={movie.emoji} size={32} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{movie.title}</div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -181,7 +186,9 @@ const ReviewModal = ({
           </div>
 
           {error && (
-            <div className="auth-error">⚠️ {error}</div>
+            <div className="auth-error" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AlertTriangle size={14} /> {error}
+            </div>
           )}
 
           {/* Display name note */}
@@ -280,10 +287,10 @@ const MyTickets = () => {
       {/* Stats row */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
         {[
-          { icon: '🎟️', value: bookings.length, label: 'Total'     },
-          { icon: '⏳', value: upcoming,         label: 'Upcoming'  },
-          { icon: '✅', value: attended,         label: 'Attended'  },
-          { icon: '❌', value: cancelled,        label: 'Cancelled' },
+          { icon: <Ticket size={20} />,      value: bookings.length, label: 'Total'     },
+          { icon: <Hourglass size={20} />,    value: upcoming,        label: 'Upcoming'  },
+          { icon: <CheckCircle2 size={20} />, value: attended,        label: 'Attended'  },
+          { icon: <XCircle size={20} />,      value: cancelled,       label: 'Cancelled' },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-icon">{s.icon}</div>
@@ -314,7 +321,7 @@ const MyTickets = () => {
       {/* Ticket list */}
       {filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🎟️</div>
+          <div className="empty-state-icon"><Ticket size={32} /></div>
           <div className="empty-state-text">
             {bookings.length === 0 ? 'No bookings yet. Browse movies to get started!' : 'No tickets in this category.'}
           </div>
@@ -334,9 +341,8 @@ const MyTickets = () => {
                   width: 48, height: 48, borderRadius: 8, flexShrink: 0,
                   background: movie?.color || genre?.color || '#1a1628',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.6rem',
                 }}>
-                  {movie?.emoji || genre?.emoji || '🎬'}
+                  <IconGlyph iconKey={movie?.emoji || genre?.emoji} size={24} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{b.movieTitle}</div>
@@ -386,9 +392,10 @@ const MyTickets = () => {
                     <Button
                       size="sm"
                       variant={hasReview ? 'outline' : 'primary'}
+                      icon={hasReview ? <Pencil size={13} /> : <Star size={13} />}
                       onClick={() => handleOpenReview(b)}
                     >
-                      {hasReview ? '✏️ Edit Review' : '⭐ Leave Review'}
+                      {hasReview ? 'Edit Review' : 'Leave Review'}
                     </Button>
                   )}
                   {b.status === 'confirmed' && (
