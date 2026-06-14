@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Modal } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import SeatMap from '../../components/ui/SeatMap';
+import AutoScheduleModal from '../../components/AutoScheduleModal';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount, updateRoom } from '../../services/templateService';
 import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Snack, subscribeToSnacks, updateSnack, CATEGORY_ICONS } from '../../services/snackService';
@@ -13,7 +14,7 @@ import {
 import {
   IconGlyph, AlertTriangle, Ticket, Map, Pause, Play, Calendar, Popcorn,
   Folder, CircleDot, Hourglass, Plus, Pencil, Trash2, Save, Film,
-  ToggleLeft, ToggleRight, CheckCircle2, XCircle, Building2,
+  ToggleLeft, ToggleRight, CheckCircle2, XCircle, Building2, Sparkles,
 } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -173,6 +174,7 @@ const CinemaManagement = () => {
   const [scheduleBucket, setScheduleBucket] = useState<TimeBucket>('today');
 
   const [showAddSchedule, setShowAddSchedule] = useState(false);
+  const [showAutoSchedule, setShowAutoSchedule] = useState(false);
   const [editSchedule,    setEditSchedule]    = useState<Schedule | null>(null);
   const [scheduleForm,    setScheduleForm]    = useState<SchedulePayload | null>(null);
   const [formError,       setFormError]       = useState('');
@@ -380,6 +382,7 @@ const CinemaManagement = () => {
                   </span>
                 </button>
               ))}
+              <Button size="sm" variant="outline" icon={<Sparkles size={14} />} onClick={() => setShowAutoSchedule(true)}>Auto Schedule</Button>
               <Button size="sm" icon={<Plus size={14} />} onClick={openAdd}>Add Show</Button>
             </div>
           }
@@ -560,6 +563,18 @@ const CinemaManagement = () => {
           <ScheduleForm form={scheduleForm} setForm={setScheduleForm as any} movies={movies} error={formError} />
         )}
       </Modal>
+
+      <AutoScheduleModal
+        open={showAutoSchedule}
+        onClose={() => setShowAutoSchedule(false)}
+        roomId={myRoom.id}
+        uid={uid ?? ''}
+        movies={movies}
+        onApplySnacks={async (enabled) => {
+          await Promise.all(snacks.map(s => updateSnack(s.id, { available: enabled })));
+        }}
+        onDone={() => { /* schedules refresh via subscription */ }}
+      />
 
       <Modal
         title={`Seat Map — ${myRoom.name}`} open={showSeatMap}

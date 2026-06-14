@@ -144,3 +144,85 @@ export const autoStatus = (date: string, startTime: string, endTime: string): Sc
   if (now >= start && now <= end) return 'running';
   return 'completed';
 };
+
+// ─── Automated scheduling ───────────────────────────────────────────────────────
+
+/** A movie reduced to just the fields the generator needs. */
+export interface GenMovie {
+  id:       string;
+  duration: number;   // minutes
+}
+
+export interface AutoScheduleConfig {
+  roomId:       string;
+  movieIds:     string[];   // movies to include, in selection order
+  dates:        string[];   // one or more calendar dates (YYYY-MM-DD)
+  dayStart:     string;     // HH:MM — earliest a show may start
+  dayEnd:       string;     // HH:MM — latest a show may end
+  gapMinutes:   number;     // gap between consecutive shows
+  repeatPerDay: number;     // how many times each movie plays per day
+  freeTickets:  boolean;    // mark every generated show as free
+  createdBy:    string;
+}
+
+const toHHMM = (minutes: number): string => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+/**
+ * Build a round-robin playlist so movies alternate before repeating:
+ * with movies [A, B, C] and repeatPerDay 2 → A B C A B C.
+ */
+const buildPlaylist = (movieIds: string[], repeatPerDay: number): string[] => {
+  const playlist: string[] = [];
+  for (let round = 0; round < repeatPerDay; round++) {
+    for (const id of movieIds) playlist.push(id);
+  }
+  return playlist;
+};
+
+/**
+ * Generate a list of schedule payloads from the manager's constraints.
+ * Shows are packed back-to-back (plus the configured gap) starting at
+ * `dayStart`; any show that would end after `dayEnd` is dropped. Movies
+ * alternate before repeating. Returns one batch per selected date.
+ *
+ * This is a pure function — it performs no clash detection or writes.
+ */
+export const generateAutoSchedule = (
+  config: AutoScheduleConfig,
+  movies: GenMovie[]
+): SchedulePayload[] => {
+  const durationOf = (id: string) => movies.find(m => m.id === id)?.duration ?? 0;
+  const playlist   = buildPlaylist(config.movieIds, config.repeatPerDay);
+  const dayStart   = toMinutes(config.dayStart);
+  const dayEnd     = toMinutes(config.dayEnd);
+  const out: SchedulePayload[] = [];
+
+  for (const date of config.dates) {
+    let cursor = dayStart;
+    for (const movieId of playlist) {
+      const duration = durationOf(movieId);
+      if (duration <= 0) continue;
+      const end = cursor + duration;
+      if (end > dayEnd) break;               // playlist exhausted for the day
+
+      out.push({
+        roomId:      config.roomId,
+        movieId,
+        date,
+        startTime:   toHHMM(cursor),
+        endTime:     toHHMM(end),
+        freeTickets: config.freeTickets,
+        status:      'upcoming',
+        createdBy:   config.createdBy,
+      });
+
+      cursor = end + config.gapMinutes;      // gap before the next show
+    }
+  }
+
+  return out;
+};
