@@ -7,6 +7,9 @@
 *firebase-adminsdk*.json
 serviceAccountKey.json
 
+# Dependencies (install locally via `npm install`)
+/node_modules
+
 # Production build
 /build
 
