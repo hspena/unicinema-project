@@ -5,6 +5,8 @@ import { Room, RoomTemplate, subscribeToTemplates } from '../services/templateSe
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../services/movieService';
 import { Schedule, subscribeToRoomSchedules, autoStatus, formatDate, todayString } from '../services/scheduleService';
 import { createBooking, getBookedSeats } from '../services/bookingService';
+import { createNotification } from '../services/notificationService';
+import { getNotificationPrefs } from '../utils/preferences';
 import { subscribeToUsers } from '../services/userService';
 import { User } from '../types';
 import {
@@ -147,6 +149,16 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
       await update(ref(db, `bookings/${booking.id}`), {
         checkedInAt: new Date().toISOString(),
       });
+
+      // If booked under a real account, let that moviegoer know (if opted in).
+      if (mode === 'account' && selectedUser &&
+          (await getNotificationPrefs(selectedUser.id)).bookingConfirmations) {
+        createNotification(selectedUser.id, {
+          type:    'booking',
+          title:   'Booking confirmed',
+          message: `${movie?.title ?? 'Movie'} · ${chosenSeats.join(', ')} · ${booking.ticketCode}`,
+        });
+      }
 
       setDoneTicket({ code: booking.ticketCode, name: userName });
       setStep(4);

@@ -8,6 +8,7 @@ import {
   getUserReviewForMovie, subscribeToMovieReviews,
 } from '../../services/reviewService';
 import { getUserById } from '../../services/userService';
+import { createNotification } from '../../services/notificationService';
 import {
   IconGlyph, Hourglass, CheckCircle2, XCircle, Save, Send, Star,
   AlertTriangle, Ticket, Pencil, QrCode,
@@ -271,6 +272,11 @@ const MyTickets = () => {
   const handleCancel = async (b: Booking) => {
     if (!window.confirm(`Cancel booking ${b.ticketCode}?`)) return;
     await cancelBooking(b.id);
+    createNotification(b.userId, {
+      type:    'cancel',
+      title:   'Booking cancelled',
+      message: `${b.movieTitle} · ${b.ticketCode} has been cancelled`,
+    });
   };
 
   // Stats

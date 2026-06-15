@@ -11,6 +11,7 @@ import {
   createMovie,  updateMovie,  deleteMovie,
   seedDefaultGenres,
 } from '../../services/movieService';
+import { broadcastPromoToMoviegoers } from '../../services/notificationService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -414,6 +415,12 @@ const MovieManagement = () => {
       } else {
         await createMovie(payload);
         setShowAddMovie(false);
+        // Let opted-in moviegoers know a new movie is now showing.
+        broadcastPromoToMoviegoers({
+          type:    'movie',
+          title:   'New movie added',
+          message: `${payload.title} is now in the catalogue`,
+        });
       }
     } catch (e: any) {
       setMovieError(e.message ?? 'Failed to save movie.');

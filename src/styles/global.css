@@ -425,6 +425,11 @@ body {
 .settings-row-label     { font-size: 0.85rem; font-weight: 500; }
 .settings-row-desc      { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
 
+/* Inline feedback under Save / Update buttons */
+.settings-msg     { font-size: 0.78rem; margin: 4px 0 12px; padding: 8px 12px; border-radius: var(--radius); }
+.settings-msg-ok  { color: #4ade80; background: rgba(74, 222, 128, 0.10); border: 1px solid rgba(74, 222, 128, 0.25); }
+.settings-msg-err { color: #f87171; background: rgba(248, 113, 113, 0.10); border: 1px solid rgba(248, 113, 113, 0.25); }
+
 /* ─── Login ─────────────────────────────────────────────────────────────────── */
 .login-page  { min-height: 100vh; display: flex; background: var(--navy); }
 .login-left  { flex: 1; background: var(--charcoal); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; border-right: 1px solid var(--border); position: relative; overflow: hidden; }
@@ -1137,6 +1142,47 @@ body {
   pointer-events: none;
 }
 
+/* Numeric unread badge (overrides the plain dot when a count is shown) */
+.notif-badge-count {
+  top: -2px;
+  right: -2px;
+  width: auto;
+  height: auto;
+  min-width: 15px;
+  padding: 1px 4px;
+  border-radius: 8px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--charcoal);
+  text-align: center;
+}
+
+/* Empty state */
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.notif-empty svg { opacity: 0.5; }
+
+/* Unread item accent */
+.notif-item { position: relative; }
+.notif-item-unread { background: rgba(212, 175, 55, 0.06); }
+.notif-unread-dot {
+  position: absolute;
+  top: 16px;
+  right: 12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
 .notif-dropdown {
   position: absolute;
   top: calc(100% + 8px);
@@ -1434,3 +1480,51 @@ body {
   .icon-btn  { min-width: 38px; min-height: 38px; }
   .sm-seat   { min-width: 20px; min-height: 18px; }
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY PREFERENCES  (toggled from Settings → applied as <body> classes)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* High contrast — strengthen text + borders for better visibility */
+body.a11y-contrast {
+  --text-primary:   #ffffff;
+  --text-secondary: #e6e2d6;
+  --text-muted:     #c4c0b4;
+  --border:         rgba(201, 168, 76, 0.55);
+}
+body.a11y-contrast.light-mode {
+  --text-primary:   #000000;
+  --text-secondary: #1a1a1a;
+  --text-muted:     #333333;
+  --border:         rgba(80, 60, 20, 0.6);
+}
+body.a11y-contrast .card,
+body.a11y-contrast .btn,
+body.a11y-contrast .input-field,
+body.a11y-contrast .select-field { border-width: 2px; }
+
+/* Reduced motion — disable transitions + animations app-wide */
+body.a11y-reduced-motion *,
+body.a11y-reduced-motion *::before,
+body.a11y-reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Screen-reader friendly — always show keyboard focus outlines */
+body.a11y-screen-reader *:focus {
+  outline: 3px solid var(--gold) !important;
+  outline-offset: 2px !important;
+}
+
+/* Dyslexia-friendly — wider tracking, taller lines, weightier body text */
+body.a11y-dyslexia {
+  --font-body: 'Comic Sans MS', 'Segoe UI', Verdana, system-ui, sans-serif;
+  letter-spacing: 0.03em;
+  word-spacing: 0.08em;
+  line-height: 1.7;
+}
+body.a11y-dyslexia p,
+body.a11y-dyslexia .settings-row-desc,
+body.a11y-dyslexia .notif-text { font-weight: 500; }

@@ -11,6 +11,8 @@ import {
   getUserReviewForMovie, getMovieAverageRating,
 } from '../../services/reviewService';
 import { getUserById } from '../../services/userService';
+import { createNotification } from '../../services/notificationService';
+import { getNotificationPrefs } from '../../utils/preferences';
 import {
   IconGlyph, Search, Film, Ticket, PartyPopper, CircleDot, Hourglass,
   AlertTriangle, Save, Pencil, PenLine, Check, Send,
@@ -206,6 +208,15 @@ const Browse = () => {
       setBookingDone({ ticketCode: booking.ticketCode, isFree });
       setShowConfirmModal(false);
       setShowSeatModal(false);
+
+      // Notify the moviegoer that their booking is confirmed (if they opted in).
+      if ((await getNotificationPrefs(uid)).bookingConfirmations) {
+        createNotification(uid, {
+          type:    'booking',
+          title:   'Booking confirmed',
+          message: `${detailMovie.title} · ${chosenSeats.join(', ')} · ${booking.ticketCode}`,
+        });
+      }
     } finally {
       setIsBooking(false);
     }
