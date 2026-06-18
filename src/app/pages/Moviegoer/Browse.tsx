@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Badge, Button, Modal } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import SeatMap from '../../components/ui/SeatMap';
+import PaymentModal from '../../components/PaymentModal';
 import { Movie, Genre, subscribeToMovies, subscribeToGenres } from '../../services/movieService';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
 import { Schedule as ScheduleItem, subscribeToAllSchedules, autoStatus, formatDate } from '../../services/scheduleService';
@@ -15,9 +16,12 @@ import { createNotification } from '../../services/notificationService';
 import { getNotificationPrefs } from '../../utils/preferences';
 import {
   IconGlyph, Search, Film, Ticket, PartyPopper, CircleDot, Hourglass,
-  AlertTriangle, Save, Pencil, PenLine, Check, Send,
+  AlertTriangle, Save, Pencil, PenLine, Check, Send, CreditCard,
 } from '../../utils/icons';
 import type { ContentRating } from '../../services/movieService';
+
+// Price charged per seat for paid (non-free) shows, in RM.
+const SEAT_PRICE = 10;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -107,6 +111,7 @@ const Browse = () => {
   const [seatsLoading,     setSeatsLoading]      = useState(false);
   const [showSeatModal,    setShowSeatModal]      = useState(false);
   const [showConfirmModal, setShowConfirmModal]   = useState(false);
+  const [showPaymentModal, setShowPaymentModal]   = useState(false);
   const [isBooking,        setIsBooking]          = useState(false);
   const [bookingDone,      setBookingDone]        = useState<{ ticketCode: string; isFree: boolean } | null>(null);
 
@@ -184,8 +189,8 @@ const Browse = () => {
     }
   };
 
-  // ── Confirm booking ────────────────────────────────────────────────────────
-  const handleBook = async () => {
+  // ── Confirm booking (paymentRef provided once a paid show has been settled) ──
+  const handleBook = async (paymentRef?: string) => {
     if (!uid || !bookingSchedule || !detailMovie || !userProfile) return;
     setIsBooking(true);
     try {
@@ -201,11 +206,14 @@ const Browse = () => {
         userName:   userProfile.displayName,
         userEmail:  '',
         seats:      chosenSeats,
-        totalPrice: isFree ? 0 : chosenSeats.length * 10,
+        totalPrice: isFree ? 0 : chosenSeats.length * SEAT_PRICE,
         isFree,
+        paid:       true,           // free shows are settled; paid shows reach here only after payment
+        ...(paymentRef ? { paymentRef } : {}),
         status:     'confirmed',
       });
       setBookingDone({ ticketCode: booking.ticketCode, isFree });
+      setShowPaymentModal(false);
       setShowConfirmModal(false);
       setShowSeatModal(false);
 
@@ -559,9 +567,19 @@ const Browse = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowConfirmModal(false)}>Back</Button>
-            <Button onClick={handleBook} disabled={isBooking} icon={isBooking ? <Hourglass size={14} /> : <Ticket size={14} />}>
-              {isBooking ? 'Booking…' : 'Confirm Booking'}
-            </Button>
+            {bookingSchedule?.freeTickets ? (
+              <Button onClick={() => handleBook()} disabled={isBooking} icon={isBooking ? <Hourglass size={14} /> : <Ticket size={14} />}>
+                {isBooking ? 'Booking…' : 'Confirm Booking'}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => { setShowConfirmModal(false); setShowPaymentModal(true); }}
+                disabled={isBooking}
+                icon={<CreditCard size={14} />}
+              >
+                Proceed to Payment
+              </Button>
+            )}
           </>
         }
       >
@@ -581,7 +599,7 @@ const Browse = () => {
                 { label: 'Seats', value: `${chosenSeats.length} seat(s)` },
                 { label: 'Price', value: bookingSchedule.freeTickets
                     ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={14} /> FREE</span>
-                    : `RM ${(chosenSeats.length * 10).toFixed(2)}` },
+                    : `RM ${(chosenSeats.length * SEAT_PRICE).toFixed(2)}` },
               ].map(({ label, value }) => (
                 <div key={label} style={{ padding: '10px 12px', background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>
@@ -595,6 +613,16 @@ const Browse = () => {
           </div>
         )}
       </Modal>
+
+      {/* ══ Payment Gateway Modal (paid shows only) ══ */}
+      <PaymentModal
+        open={showPaymentModal}
+        amount={chosenSeats.length * SEAT_PRICE}
+        movieTitle={detailMovie?.title ?? ''}
+        seatCount={chosenSeats.length}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={(paymentRef) => handleBook(paymentRef)}
+      />
     </div>
   );
 };

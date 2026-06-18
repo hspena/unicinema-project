@@ -22,6 +22,8 @@ export interface Booking {
   seats:       string[];
   totalPrice:  number;
   isFree:      boolean;
+  paid:        boolean;       // true once payment is settled (always true for free shows)
+  paymentRef?: string;        // gateway transaction reference (paid shows only)
   status:      BookingStatus;
   bookedAt:    string;
   checkedInAt?: string;

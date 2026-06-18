@@ -12,6 +12,7 @@ import {
   RefreshCw, EyeOff, BarChart3, TrendingUp, TrendingDown, Armchair,
   LayoutGrid, ArrowLeft, ArrowRight, ArrowUp, Check,
   Pause, Play, Map, ToggleLeft, ToggleRight, PenLine,
+  CreditCard, Lock, ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -81,5 +82,6 @@ export {
   RefreshCw, EyeOff, BarChart3, TrendingUp, TrendingDown, Armchair,
   LayoutGrid, ArrowLeft, ArrowRight, ArrowUp, Check,
   Pause, Play, Map, ToggleLeft, ToggleRight, PenLine,
+  CreditCard, Lock, ShieldCheck,
 };
 export type { LucideIcon };

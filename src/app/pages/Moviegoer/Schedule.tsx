@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Modal } from '../../components/ui';
 import SeatMap from '../../components/ui/SeatMap';
+import PaymentModal from '../../components/PaymentModal';
 import { useAuth }     from '../../context/AuthContext';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../../services/movieService';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
@@ -15,8 +16,11 @@ import { createNotification } from '../../services/notificationService';
 import { getNotificationPrefs } from '../../utils/preferences';
 import {
   IconGlyph, CircleDot, Hourglass, CheckCircle2, XCircle, Folder, Calendar,
-  Ticket, PartyPopper,
+  Ticket, PartyPopper, CreditCard,
 } from '../../utils/icons';
+
+// Price charged per seat for paid (non-free) shows, in RM.
+const SEAT_PRICE = 10;
 
 // ─── Time-bucket helper ───────────────────────────────────────────────────────
 
@@ -111,6 +115,7 @@ const SchedulePage = () => {
   const [seatsLoading,     setSeatsLoading]     = useState(false);
   const [showSeatModal,    setShowSeatModal]    = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isBooking,        setIsBooking]        = useState(false);
   const [bookingDone,      setBookingDone]      = useState<{ ticketCode: string; isFree: boolean } | null>(null);
 
@@ -151,8 +156,8 @@ const SchedulePage = () => {
     }
   };
 
-  // ── Confirm booking ──
-  const handleBook = async () => {
+  // ── Confirm booking (paymentRef provided once a paid show has been settled) ──
+  const handleBook = async (paymentRef?: string) => {
     if (!uid || !bookingSchedule || !bookingMovie || !userProfile) return;
     setIsBooking(true);
     try {
@@ -168,11 +173,14 @@ const SchedulePage = () => {
         userName:   userProfile.displayName,
         userEmail:  '',
         seats:      chosenSeats,
-        totalPrice: isFree ? 0 : chosenSeats.length * 10,
+        totalPrice: isFree ? 0 : chosenSeats.length * SEAT_PRICE,
         isFree,
+        paid:       true,           // free shows are settled; paid shows reach here only after payment
+        ...(paymentRef ? { paymentRef } : {}),
         status:     'confirmed',
       });
       setBookingDone({ ticketCode: booking.ticketCode, isFree });
+      setShowPaymentModal(false);
       setShowConfirmModal(false);
       setShowSeatModal(false);
 
@@ -419,9 +427,19 @@ const SchedulePage = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowConfirmModal(false)}>Back</Button>
-            <Button onClick={handleBook} disabled={isBooking} icon={isBooking ? <Hourglass size={14} /> : <Ticket size={14} />}>
-              {isBooking ? 'Booking…' : 'Confirm Booking'}
-            </Button>
+            {bookingSchedule?.freeTickets ? (
+              <Button onClick={() => handleBook()} disabled={isBooking} icon={isBooking ? <Hourglass size={14} /> : <Ticket size={14} />}>
+                {isBooking ? 'Booking…' : 'Confirm Booking'}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => { setShowConfirmModal(false); setShowPaymentModal(true); }}
+                disabled={isBooking}
+                icon={<CreditCard size={14} />}
+              >
+                Proceed to Payment
+              </Button>
+            )}
           </>
         }
       >
@@ -441,7 +459,7 @@ const SchedulePage = () => {
                 { label: 'Seats', value: `${chosenSeats.length} seat(s)` },
                 { label: 'Price', value: bookingSchedule.freeTickets
                     ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={14} /> FREE</span>
-                    : `RM ${(chosenSeats.length * 10).toFixed(2)}` },
+                    : `RM ${(chosenSeats.length * SEAT_PRICE).toFixed(2)}` },
               ].map(({ label, value }) => (
                 <div key={label} style={{ padding: '10px 12px', background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>
@@ -455,6 +473,16 @@ const SchedulePage = () => {
           </div>
         )}
       </Modal>
+
+      {/* ══ Payment Gateway Modal (paid shows only) ══ */}
+      <PaymentModal
+        open={showPaymentModal}
+        amount={chosenSeats.length * SEAT_PRICE}
+        movieTitle={bookingMovie?.title ?? ''}
+        seatCount={chosenSeats.length}
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={(paymentRef) => handleBook(paymentRef)}
+      />
 
       {/* ══ Booking Confirmed Modal ══ */}
       <Modal

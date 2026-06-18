@@ -140,6 +140,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
         seats:      chosenSeats,
         totalPrice: isFree ? 0 : chosenSeats.length * 10,
         isFree,
+        paid:       true,          // paid at the counter on walk-up
         status:     'checked-in',  // ← immediately checked in
       });
 
