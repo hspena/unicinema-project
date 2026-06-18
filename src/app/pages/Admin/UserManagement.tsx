@@ -51,7 +51,21 @@ const UserManagement = () => {
     setIsSubmitting(true);
     setFormError('');
     try {
-      await createUser({ name: newName, email: newEmail, password: newPassword, role: newRole });
+      // Modal has no username field, so derive a unique handle from the email
+      // (falling back to the name). createUser rejects duplicates.
+      const base = (newEmail.split('@')[0] || newName)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      const username = base || `user${Date.now()}`;
+
+      await createUser({
+        name: newName,
+        displayName: newName,
+        username,
+        email: newEmail,
+        password: newPassword,
+        role: newRole,
+      });
       setShowModal(false);
       setNewName(''); setNewEmail(''); setNewPassword(''); setNewRole('Moviegoer');
     } catch (err: any) {
