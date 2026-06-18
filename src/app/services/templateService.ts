@@ -25,12 +25,21 @@ export interface RoomTemplate {
 }
 
 export interface Room {
-  id:         string;
-  name:       string;
-  templateId: string;
-  status:     'active' | 'inactive';
-  managerId?: string;
+  id:          string;
+  name:        string;
+  templateId:  string;
+  status:      'active' | 'inactive';
+  managerId?:  string;     // legacy: primary manager (kept in sync with managerIds[0])
+  managerIds?: string[];   // all managers assigned to this room
 }
+
+/** All manager UIDs assigned to a room (merges legacy managerId + managerIds). */
+export const roomManagerIds = (room: Room): string[] => {
+  const ids = new Set<string>();
+  if (room.managerId) ids.add(room.managerId);
+  (room.managerIds ?? []).forEach(id => ids.add(id));
+  return Array.from(ids);
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 export const sectionKey = (row: number, col: number): SectionKey =>
@@ -132,4 +141,15 @@ export const updateRoom = async (
 
 export const deleteRoom = async (id: string): Promise<void> => {
   await remove(roomRef(id));
+};
+
+/** Replace the full set of managers for a room. Keeps legacy managerId in sync. */
+export const setRoomManagers = async (
+  id: string,
+  managerIds: string[]
+): Promise<void> => {
+  await update(roomRef(id), {
+    managerIds,
+    managerId: managerIds[0] ?? null,
+  });
 };

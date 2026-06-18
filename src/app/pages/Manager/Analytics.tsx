@@ -3,7 +3,7 @@ import { StatCard, Card, BarChart } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { Building2, Film, Ticket, DollarSign } from '../../utils/icons';
 import { Movie, Genre, subscribeToMovies, subscribeToGenres } from '../../services/movieService';
-import { Room, subscribeToRooms } from '../../services/templateService';
+import { Room, subscribeToRooms, roomManagerIds } from '../../services/templateService';
 import { Schedule, subscribeToRoomSchedules } from '../../services/scheduleService';
 import { Booking, subscribeToRoomBookings } from '../../services/bookingService';
 
@@ -29,7 +29,7 @@ const Analytics = () => {
     return () => { u1(); u2(); u3(); };
   }, []);
 
-  const myRoom = rooms.find(r => r.managerId === uid) ?? rooms[0] ?? null;
+  const myRoom = rooms.find(r => uid && roomManagerIds(r).includes(uid)) ?? rooms[0] ?? null;
 
   useEffect(() => {
     if (!myRoom) { setSchedules([]); setBookings([]); return; }

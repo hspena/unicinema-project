@@ -3,7 +3,7 @@ import { Card, Badge, Button, Modal } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import SeatMap from '../../components/ui/SeatMap';
 import AutoScheduleModal from '../../components/AutoScheduleModal';
-import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount, updateRoom } from '../../services/templateService';
+import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount, updateRoom, roomManagerIds } from '../../services/templateService';
 import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Snack, subscribeToSnacks, updateSnack, CATEGORY_ICONS } from '../../services/snackService';
 import {
@@ -181,7 +181,7 @@ const CinemaManagement = () => {
   const [isSaving,        setIsSaving]        = useState(false);
   const [showSeatMap,     setShowSeatMap]     = useState(false);
 
-  const myRoom     = rooms.find(r => r.managerId === uid) ?? rooms[0] ?? null;
+  const myRoom     = rooms.find(r => uid && roomManagerIds(r).includes(uid)) ?? rooms[0] ?? null;
   const myTemplate = myRoom ? templates.find(t => t.id === myRoom.templateId) ?? null : null;
 
   useEffect(() => {

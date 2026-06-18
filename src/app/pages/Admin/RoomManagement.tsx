@@ -5,6 +5,7 @@ import {
   RoomTemplate, Room,
   subscribeToTemplates, subscribeToRooms,
   createRoom, updateRoom, deleteRoom, deleteTemplate,
+  setRoomManagers, roomManagerIds,
   templateSeatCount,
 } from '../../services/templateService';
 import {
@@ -14,7 +15,7 @@ import {
 import { User } from '../../types';
 import {
   Folder, Building2, AlertTriangle, CheckCircle2, Check, X, Hourglass,
-  ArrowLeft, ArrowRight, RefreshCw,
+  ArrowLeft, ArrowRight, RefreshCw, Pencil, Trash2, Plus, Save, Users,
 } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -53,6 +54,16 @@ const RoomManagement = () => {
   const [formError,      setFormError]      = useState('');
   const [isCreating,     setIsCreating]     = useState(false);
   const [createdInfo,    setCreatedInfo]    = useState<{ roomName: string; email: string; password: string } | null>(null);
+
+  // ── Edit room ────────────────────────────────────────────────────────────────
+  const [editRoom,       setEditRoom]       = useState<Room | null>(null);
+  const [eName,          setEName]          = useState('');
+  const [eTplId,         setETplId]         = useState('');
+  const [eStatus,        setEStatus]        = useState<'active' | 'inactive'>('inactive');
+  const [eManagerIds,    setEManagerIds]    = useState<string[]>([]);
+  const [eAddMgrId,      setEAddMgrId]      = useState('');
+  const [eError,         setEError]         = useState('');
+  const [eSaving,        setESaving]        = useState(false);
 
   useEffect(() => {
     const u1 = subscribeToTemplates(setTemplates);
@@ -142,6 +153,45 @@ const RoomManagement = () => {
     await updateRoom(room.id, { status: room.status === 'active' ? 'inactive' : 'active' });
   };
 
+  // ── Edit room ────────────────────────────────────────────────────────────────
+  const openEdit = (room: Room) => {
+    setEditRoom(room);
+    setEName(room.name);
+    setETplId(room.templateId);
+    setEStatus(room.status);
+    setEManagerIds(roomManagerIds(room));
+    setEAddMgrId('');
+    setEError('');
+  };
+
+  const addEditManager = () => {
+    if (!eAddMgrId) return;
+    setEManagerIds(ids => ids.includes(eAddMgrId) ? ids : [...ids, eAddMgrId]);
+    setEAddMgrId('');
+  };
+
+  const removeEditManager = (id: string) => {
+    setEManagerIds(ids => ids.filter(m => m !== id));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editRoom) return;
+    setEError('');
+    if (!eName.trim()) { setEError('Room name is required.'); return; }
+    if (!eTplId)       { setEError('Please select a template.'); return; }
+
+    setESaving(true);
+    try {
+      await updateRoom(editRoom.id, { name: eName.trim(), templateId: eTplId, status: eStatus });
+      await setRoomManagers(editRoom.id, eManagerIds);
+      setEditRoom(null);
+    } catch (e: any) {
+      setEError(e.message ?? 'Failed to save room.');
+    } finally {
+      setESaving(false);
+    }
+  };
+
   return (
     <div className="page fade-in">
       <div className="page-header">
@@ -219,8 +269,7 @@ const RoomManagement = () => {
           ) : (
             <div className="room-grid">
               {rooms.map(r => {
-                const tpl     = templates.find(t => t.id === r.templateId);
-                const manager = managers.find(m => m.id === r.managerId);
+                const tpl = templates.find(t => t.id === r.templateId);
                 return (
                   <div key={r.id} className="room-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -235,17 +284,29 @@ const RoomManagement = () => {
                     </div>
                     <div className="room-stat"><span>Template</span><span>{tpl?.name ?? '—'}</span></div>
                     {tpl && <div className="room-stat"><span>Total Seats</span><span>{templateSeatCount(tpl)}</span></div>}
-                    <div className="room-stat">
-                      <span>Manager</span>
-                      <span style={{ fontSize: '0.75rem' }}>
-                        {manager
-                          ? <><strong>{manager.displayName || manager.name}</strong><br />@{manager.username}</>
-                          : <span style={{ color: 'var(--warning)' }}>Unassigned</span>
-                        }
-                      </span>
-                    </div>
+                    {(() => {
+                      const assigned = roomManagerIds(r)
+                        .map(id => managers.find(m => m.id === id))
+                        .filter(Boolean) as User[];
+                      return (
+                        <div className="room-stat" style={{ alignItems: 'flex-start' }}>
+                          <span>{assigned.length > 1 ? 'Managers' : 'Manager'}</span>
+                          <span style={{ fontSize: '0.75rem', textAlign: 'right' }}>
+                            {assigned.length > 0
+                              ? assigned.map(m => (
+                                  <span key={m.id} style={{ display: 'block' }}>
+                                    <strong>{m.displayName || m.name}</strong> @{m.username}
+                                  </span>
+                                ))
+                              : <span style={{ color: 'var(--warning)' }}>Unassigned</span>
+                            }
+                          </span>
+                        </div>
+                      );
+                    })()}
                     <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-                      <Button variant="danger" size="sm" style={{ flex: 1 }} onClick={() => handleDeleteRoom(r.id)}>Delete</Button>
+                      <Button variant="outline" size="sm" style={{ flex: 1 }} icon={<Pencil size={13} />} onClick={() => openEdit(r)}>Edit</Button>
+                      <Button variant="danger" size="sm" style={{ flex: 1 }} icon={<Trash2 size={13} />} onClick={() => handleDeleteRoom(r.id)}>Delete</Button>
                     </div>
                   </div>
                 );
@@ -382,6 +443,109 @@ const RoomManagement = () => {
                 onChange={e => setMgrPassword(e.target.value)} />
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 3 }}>
                 Share this with the manager — they should change it after first login.
+              </div>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      {/* ── Edit Room Modal ── */}
+      <Modal
+        title={<><Pencil size={16} style={{ verticalAlign: -3, marginRight: 6 }} /> Edit Room</>}
+        open={!!editRoom}
+        onClose={() => setEditRoom(null)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setEditRoom(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={eSaving} icon={eSaving ? <Hourglass size={14} /> : <Save size={14} />}>
+              {eSaving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </>
+        }
+      >
+        {editRoom && (
+          <>
+            {eError && <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {eError}</div>}
+
+            <div className="input-group">
+              <label className="input-label">Room Name *</label>
+              <input className="input-field" value={eName} onChange={e => setEName(e.target.value)} />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Seat Template *</label>
+              <select className="select-field" value={eTplId} onChange={e => setETplId(e.target.value)}>
+                <option value="">Select a template…</option>
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name} — {templateSeatCount(t)} seats</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Status</label>
+              <select className="select-field" value={eStatus} onChange={e => setEStatus(e.target.value as 'active' | 'inactive')}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            {/* Managers */}
+            <div className="input-group">
+              <label className="input-label">
+                <Users size={13} style={{ verticalAlign: -2, marginRight: 4 }} /> Assigned Managers ({eManagerIds.length})
+              </label>
+
+              {eManagerIds.length === 0 ? (
+                <div style={{ fontSize: '0.78rem', color: 'var(--warning)', marginBottom: 8 }}>No managers assigned.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                  {eManagerIds.map(id => {
+                    const m = managers.find(u => u.id === id);
+                    return (
+                      <div key={id} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '7px 10px', background: 'var(--navy)', borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)', fontSize: '0.8rem',
+                      }}>
+                        <span>
+                          {m ? <><strong>{m.displayName || m.name}</strong> <span style={{ color: 'var(--text-muted)' }}>@{m.username}</span></> : <span style={{ color: 'var(--text-muted)' }}>{id}</span>}
+                        </span>
+                        <span
+                          style={{ cursor: 'pointer', color: 'var(--danger)', display: 'inline-flex' }}
+                          title="Remove manager"
+                          onClick={() => removeEditManager(id)}
+                        >
+                          <X size={15} />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 6 }}>
+                <select
+                  className="select-field"
+                  style={{ flex: 1 }}
+                  value={eAddMgrId}
+                  onChange={e => setEAddMgrId(e.target.value)}
+                >
+                  <option value="">Add an existing manager…</option>
+                  {managers
+                    .filter(m => !eManagerIds.includes(m.id))
+                    .map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.displayName || m.name} (@{m.username})
+                      </option>
+                    ))}
+                </select>
+                <Button variant="outline" size="sm" icon={<Plus size={14} />} onClick={addEditManager} disabled={!eAddMgrId}>
+                  Add
+                </Button>
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                To create a brand-new manager account, use “Add Room + Manager”.
               </div>
             </div>
           </>

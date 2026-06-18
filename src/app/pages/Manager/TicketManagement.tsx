@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Modal, QrScanner } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
-import { subscribeToRooms, subscribeToTemplates, Room } from '../../services/templateService';
+import { subscribeToRooms, subscribeToTemplates, Room, roomManagerIds } from '../../services/templateService';
 import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Schedule, subscribeToRoomSchedules, formatDate } from '../../services/scheduleService';
 import {
@@ -46,7 +46,7 @@ const TicketManagement = () => {
   // Detail modal
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
 
-  const myRoom = rooms.find(r => r.managerId === uid) ?? rooms[0] ?? null;
+  const myRoom = rooms.find(r => uid && roomManagerIds(r).includes(uid)) ?? rooms[0] ?? null;
 
   useEffect(() => {
     const u1 = subscribeToRooms(setRooms);
