@@ -1,9 +1,9 @@
 // ─── Firebase Configuration ───────────────────────────────────────────────────
-// Replace the values below with your actual Firebase project credentials.
+// Values are read from REACT_APP_FIREBASE_* environment variables (see .env).
+// Copy .env.example to .env and fill in your Firebase project credentials:
 // Firebase Console → Project Settings → General → Your apps → Web app config.
 //
-// NOTE: Never commit real API keys to version control.
-// Use a .env file with REACT_APP_ prefix variables instead.
+// NOTE: .env is gitignored — never commit real API keys to version control.
 
 import { initializeApp } from 'firebase/app';
 import { getAuth }       from 'firebase/auth';

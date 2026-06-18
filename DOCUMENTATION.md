@@ -7,6 +7,27 @@
 
 ---
 
+## Table of Contents
+
+1. [Project Overview](#1-project-overview)
+2. [Technology Stack](#2-technology-stack)
+3. [High-Level Architecture](#3-high-level-architecture)
+4. [Folder Structure](#4-folder-structure)
+5. [How the App Boots and Routes](#5-how-the-app-boots-and-routes)
+6. [Authentication & Roles](#6-authentication--roles-authcontexttsx)
+7. [The Data Layer — Services](#7-the-data-layer--services)
+8. [CineBot — The AI Chatbot](#8-cinebot--the-ai-chatbot-geminiservicets)
+9. [Notable Feature: Automated Scheduling](#9-notable-feature-automated-scheduling)
+10. [Notable Feature: QR-Code Tickets](#10-notable-feature-qr-code-tickets)
+11. [External APIs & Services Used](#11-external-apis--services-used)
+12. [Data Classes & Entity Relationships (ERD)](#12-data-classes--entity-relationships-erd)
+13. [Algorithm & Logic Flow of the System](#13-algorithm--logic-flow-of-the-system)
+14. [Running the Project](#14-running-the-project)
+15. [Glossary](#15-glossary-for-the-report)
+16. [Suggested "How to Explain This Project" Script](#16-suggested-how-to-explain-this-project-script)
+
+---
+
 ## 1. Project Overview
 
 **UniCinema** is a single-page web application (SPA) that manages the full
@@ -425,13 +446,187 @@ checked in.**
 
 ---
 
-## 11. Data Model (Firebase Realtime Database)
+## 11. External APIs & Services Used
 
-The database is a JSON tree. The main top-level "collections" are:
+The app has **no custom backend**. Everything is reached directly from the
+browser through three external APIs plus a couple of browser APIs.
+
+### 11.1 Firebase Authentication API
+Used in `userService.ts` and `AuthContext.tsx` for all account/session logic.
+
+| Function (Firebase SDK) | Where / why it's used |
+|-------------------------|------------------------|
+| `signInWithEmailAndPassword` | `loginUser` — log a user in. |
+| `signOut` | `logoutUser` — end the session. |
+| `createUserWithEmailAndPassword` | `createUser` / `registerMoviegoer` — make new accounts. |
+| `onAuthStateChanged` | `AuthContext` — restore session on refresh. |
+| `updatePassword` + `reauthenticateWithCredential` + `EmailAuthProvider` | `changePassword` — Firebase requires re-auth before a password change. |
+| `initializeApp` / `deleteApp` (secondary app) | `createUser` — create a user without disturbing the admin's session. |
+
+### 11.2 Firebase Realtime Database API
+Every service file uses the same small set of SDK functions. This is the entire
+database "vocabulary" of the project:
+
+| Function | Purpose |
+|----------|---------|
+| `ref(db, 'path')` | Point at a location in the JSON tree. |
+| `push(ref)` | Create a new child with an auto-generated **push ID**. |
+| `set(ref, value)` | Write/overwrite data at a location. |
+| `update(ref, partial)` | Patch specific fields without overwriting siblings. |
+| `get(ref)` | Read once (one-off fetch). |
+| `remove(ref)` | Delete data. |
+| `onValue(ref, cb)` / `off(ref)` | Subscribe / unsubscribe to **real-time** changes. |
+
+### 11.3 Google Gemini API (CineBot)
+A REST call (not an SDK) in `geminiService.ts`:
+
+- **Endpoint:** `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=…`
+- **Model:** `gemini-2.5-flash`
+- **Auth:** API key from `REACT_APP_GEMINI_API_KEY`.
+- **Request highlights:** a `system_instruction` (CineBot's persona + the live
+  movie catalogue), the chat `contents` (history), and a `generationConfig` that
+  forces **JSON output** via `responseMimeType: 'application/json'` and a
+  `responseSchema`.
+- **Transport:** the browser `fetch` API, with a 3-attempt retry on `429`/`503`.
+
+### 11.4 Browser APIs
+- **Camera / MediaDevices** — used indirectly through `html5-qrcode` in
+  `QrScanner.tsx` to read ticket QR codes from the device camera.
+- **Canvas** — `qrcode` renders the ticket QR image to a canvas/data-URL.
+- **`localStorage`** — theme preference (`ThemeContext`) and notification prefs caching.
+
+---
+
+## 12. Data Classes & Entity Relationships (ERD)
+
+All data classes are TypeScript `interface`s declared inside their service file.
+They double as both the **database schema** and the **app's type system**.
+
+### 12.1 The data classes (entities)
+
+| Entity | Key fields | Defined in |
+|--------|-----------|------------|
+| **User** | `id, name, displayName, username, email, role, status, joined` | `types/index.ts` |
+| **Genre** | `id, name, emoji, color` | `movieService.ts` |
+| **Movie** | `id, title, genreId →Genre, duration, year, rating, synopsis, director, cast, emoji, color, createdBy` | `movieService.ts` |
+| **RoomTemplate** | `id, name, gridRows, gridCols, sections{}, createdBy` | `templateService.ts` |
+| **Room** | `id, name, templateId →RoomTemplate, status, managerId →User` | `templateService.ts` |
+| **Schedule** | `id, roomId →Room, movieId →Movie, date, startTime, endTime, freeTickets, status, createdBy` | `scheduleService.ts` |
+| **Booking** | `id, ticketCode, scheduleId →Schedule, roomId, movieId, userId →User, seats[], totalPrice, isFree, status, bookedAt` | `bookingService.ts` |
+| **Snack** | `id, name, category, price, stock, emoji, description, available` | `snackService.ts` |
+| **Review** | `id, movieId →Movie, userId →User, rating, comment, bookingId →Booking, createdAt` | `reviewService.ts` |
+| **AppNotification** | `id, type, title, message, read, createdAt` (stored per user) | `notificationService.ts` |
+
+> The `→` arrows mark foreign-key-style references. Because the Realtime
+> Database is a flat JSON tree, these "joins" are resolved **in code** (e.g. a
+> schedule stores a `movieId`, and the UI looks up the matching `Movie`).
+
+### 12.2 Entity-Relationship Diagram
+
+> Rendered with **Mermaid** — GitHub (and most Markdown viewers) display this as
+> a real diagram. `||--o{` means *one-to-many*; `||--||` means *one-to-one*.
+
+```mermaid
+erDiagram
+    USER ||--o{ BOOKING : "makes"
+    USER ||--o{ REVIEW : "writes"
+    USER ||--o{ NOTIFICATION : "receives"
+    USER ||--o{ ROOM : "manages"
+
+    GENRE ||--o{ MOVIE : "categorises"
+    ROOM_TEMPLATE ||--o{ ROOM : "is layout for"
+
+    ROOM ||--o{ SCHEDULE : "hosts"
+    MOVIE ||--o{ SCHEDULE : "shown in"
+
+    SCHEDULE ||--o{ BOOKING : "booked as"
+    MOVIE ||--o{ REVIEW : "receives"
+    BOOKING ||--|| REVIEW : "entitles"
+
+    USER {
+        string id PK
+        string username UK
+        string email
+        enum   role
+        enum   status
+    }
+    GENRE {
+        string id PK
+        string name
+    }
+    MOVIE {
+        string id PK
+        string genreId FK
+        string title
+        int    duration
+        enum   rating
+    }
+    ROOM_TEMPLATE {
+        string id PK
+        int    gridRows
+        int    gridCols
+    }
+    ROOM {
+        string id PK
+        string templateId FK
+        string managerId FK
+        enum   status
+    }
+    SCHEDULE {
+        string id PK
+        string roomId FK
+        string movieId FK
+        string date
+        bool   freeTickets
+        enum   status
+    }
+    BOOKING {
+        string id PK
+        string ticketCode UK
+        string scheduleId FK
+        string userId FK
+        string seats
+        number totalPrice
+        enum   status
+    }
+    REVIEW {
+        string id PK
+        string movieId FK
+        string userId FK
+        string bookingId FK
+        int    rating
+    }
+    SNACK {
+        string id PK
+        string name
+        number price
+        int    stock
+    }
+    NOTIFICATION {
+        string id PK
+        enum   type
+        bool   read
+    }
+```
+
+> **Note:** `SNACK` is intentionally standalone — it has no relationships to the
+> other entities (it's a simple concession catalogue).
+
+**Relationship summary (cardinality):**
+- A **Genre** has many **Movies**; each Movie belongs to one Genre.
+- A **RoomTemplate** can be used by many **Rooms**; each Room uses one template.
+- A **Room** + a **Movie** combine into many **Schedules** (showtimes).
+- A **Schedule** has many **Bookings**; each Booking is for one Schedule.
+- A **User** makes many **Bookings** and writes many **Reviews**.
+- A **Review** links one User + one Movie + the Booking that entitles it.
+- A **User** receives many **AppNotifications**.
+- **Snacks** are a standalone catalogue (no hard relationships).
+
+### 12.3 Firebase storage paths
 
 | Path | Stores | Defined in |
 |------|--------|-----------|
-| `/users` | User profiles (name, role, status…) | `userService.ts` |
+| `/users` | User profiles | `userService.ts` |
 | `/usernames` | `username → uid` uniqueness index | `userService.ts` |
 | `/genres` | Movie genres + default poster style | `movieService.ts` |
 | `/movies` | Movie catalogue | `movieService.ts` |
@@ -441,25 +636,148 @@ The database is a JSON tree. The main top-level "collections" are:
 | `/bookings` | Ticket bookings | `bookingService.ts` |
 | `/snacks` | Concession items | `snackService.ts` |
 | `/reviews` | Movie reviews & ratings | `reviewService.ts` |
-| `/notifications` | Per-user in-app notifications | `notificationService.ts` |
-| `/notificationPrefs` | Per-user notification opt-ins | `utils/preferences.ts` |
-
-Relationships are by ID reference (e.g. a `Booking` holds a `scheduleId`,
-`roomId`, `movieId`, and `userId`). Because the Realtime Database is flat, the
-app does the "joining" in code (e.g. looking up a movie by `movieId` when
-displaying a schedule).
+| `/notifications/{uid}` | Per-user in-app notifications | `notificationService.ts` |
+| `/notificationPrefs/{uid}` | Per-user notification opt-ins | `utils/preferences.ts` |
 
 ---
 
-## 12. Running the Project
+## 13. Algorithm & Logic Flow of the System
+
+This section traces the **main flows** end to end — useful for a "system design"
+chapter of a report.
+
+### 13.1 Startup & authentication flow
+
+```
+index.tsx renders <App/> inside <ThemeProvider><AuthProvider>
+        │
+        ▼
+AuthProvider runs onAuthStateChanged (Firebase)
+        │
+   ┌────┴─────────────────────────────┐
+   │ session exists?                   │
+   ▼ yes                               ▼ no
+look up role in /users           isLoggedIn = false
+set role + default view                │
+isLoggedIn = true                      │
+   └──────────────┬────────────────────┘
+                  ▼
+            App.tsx renders:
+   isLoading → spinner
+   !isLoggedIn → <Login/>
+   logged in → <AppLayout> + resolveView(currentView)
+```
+
+### 13.2 View navigation (instead of a URL router)
+1. User clicks a sidebar item → `setView('movies')` updates `currentView` in `AuthContext`.
+2. React re-renders `App` → `resolveView('movies')` looks up `ROUTE_MAP`.
+3. The matching page element renders; unknown keys fall back to `<NotFound/>`.
+
+### 13.3 Moviegoer booking flow (the core transaction)
+
+```
+Browse / Schedule page
+   │ pick a showtime  ──────────────► subscribeToAllSchedules (live data)
+   ▼
+Open SeatMap modal
+   │ getBookedSeats(scheduleId) ─────► grey out already-taken seats
+   │ user selects seats
+   ▼
+Free show?  ── yes ──► skip payment
+   │ no
+   ▼
+PaymentModal (demo)  → totalPrice = seats × SEAT_PRICE (RM 10)
+   ▼
+createBooking(payload)
+   ├─ push() generates booking id
+   ├─ generateTicketCode() → "TKT-XXXXXX"
+   └─ set() writes to /bookings
+   ▼
+createNotification(uid, "booking confirmed")   (fire-and-forget)
+   ▼
+Ticket appears in "My Tickets" with a QR code (live via subscribeToUserBookings)
+```
+
+### 13.4 Staff check-in flow
+
+```
+Staff opens QrScanner (camera)
+   ▼
+scan QR → ticketCode string
+   ▼
+findBookingByCode(code)  → scans /bookings for a matching, non-cancelled code
+   ├─ not found → show error
+   └─ found → checkInBooking(id): status = 'checked-in', set checkedInAt
+   ▼
+Seat map / list updates live (subscribeToRoomBookings)
+```
+
+### 13.5 Clash detection algorithm (`findClash`)
+When a manager adds a schedule, the system prevents two shows overlapping in the
+same room on the same day:
+
+```
+newStart, newEnd  = times converted to minutes since midnight
+for each existing show in the same room + date (excluding self):
+    if newStart < existing.end  AND  newEnd > existing.start:
+        → OVERLAP — reject (return the clashing show)
+return null   (no clash → allow)
+```
+The condition is the classic **interval-overlap test**: two ranges overlap iff
+each starts before the other ends.
+
+### 13.6 Auto-schedule generation algorithm (`generateAutoSchedule`)
+A **pure function** (no database writes) that fills a day with showtimes:
+
+```
+playlist = round-robin of movieIds, repeated `repeatPerDay` times
+           e.g. [A,B,C] ×2 → A B C A B C
+for each selected date:
+    cursor = dayStart (in minutes)
+    for each movieId in playlist:
+        end = cursor + movie.duration
+        if end > dayEnd: break          # no room left today
+        emit schedule {start: cursor, end}
+        cursor = end + gapMinutes        # gap before next show
+```
+The result is a list of `SchedulePayload`s; the caller runs clash detection and
+writes them. (See also §9.)
+
+### 13.7 CineBot conversation flow (`askCineBot`)
+
+```
+ChatbotPage builds a system prompt = persona + LIVE movie catalogue
+   (so the AI can only recommend movies that actually exist)
+   ▼
+askCineBot(systemPrompt, history)
+   ▼
+POST to Gemini with responseSchema → forces JSON {reply, movieTitles, suggestions}
+   ├─ 429/503 → retry up to 3× with back-off
+   └─ ok → parse JSON
+   ▼
+UI renders: reply text + movie cards (matched by title) + quick-reply chips
+```
+
+### 13.8 Real-time update pattern (used everywhere)
+Every list screen follows the same loop, so the UI always mirrors the database:
+
+```
+component mounts → subscribeToX(setState)   (onValue listener attached)
+database changes anywhere → callback fires → setState → React re-renders
+component unmounts → returned unsubscribe() runs → off() detaches listener
+```
+
+---
+
+## 14. Running the Project
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Provide environment variables in a .env file
-#    REACT_APP_GEMINI_API_KEY=your_gemini_key_here
-#    (Firebase config is currently hard-coded in src/app/config/firebase.ts)
+# 2. Create a .env file from the template and fill in your keys
+#    cp .env.example .env   (then edit it)
+#    Needs REACT_APP_GEMINI_API_KEY and the REACT_APP_FIREBASE_* values.
 
 # 3. Start the development server (http://localhost:3000)
 npm start
@@ -476,7 +794,7 @@ through the Admin UI.
 
 ---
 
-## 13. Glossary (for the report)
+## 15. Glossary (for the report)
 
 | Term | Meaning |
 |------|---------|
@@ -490,7 +808,7 @@ through the Admin UI.
 
 ---
 
-## 14. Suggested "How to Explain This Project" Script
+## 16. Suggested "How to Explain This Project" Script
 
 If you need to summarise the project verbally:
 
