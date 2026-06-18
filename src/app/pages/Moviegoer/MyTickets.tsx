@@ -3,6 +3,7 @@ import { Badge, Button, Modal, QrCodeView } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { Booking, subscribeToUserBookings, cancelBooking } from '../../services/bookingService';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../../services/movieService';
+import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
 import {
   Review, createReview, updateReview, deleteReview,
   getUserReviewForMovie, subscribeToMovieReviews,
@@ -50,6 +51,19 @@ const statusBadge = (status: Booking['status']) => {
   };
   const { variant, label, icon } = map[status];
   return <Badge variant={variant} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{icon} {label}</Badge>;
+};
+
+// Turn a raw seat id ("r0c0-5") into a friendly label ("Premium A3").
+// Falls back to the raw id if the room's layout can't be resolved.
+const seatLabel = (seatId: string, template: RoomTemplate | null | undefined): string => {
+  const parts   = seatId.split('-');
+  const idx     = parseInt(parts[parts.length - 1], 10);
+  const secKey  = parts.slice(0, -1).join('-');
+  const sec     = template?.sections[secKey];
+  if (!sec || isNaN(idx)) return seatId;
+  const rowLetter = String.fromCharCode(65 + Math.floor(idx / sec.seatCols));
+  const colNum    = (idx % sec.seatCols) + 1;
+  return `${sec.name} ${rowLetter}${colNum}`;
 };
 
 // ─── Review Modal ─────────────────────────────────────────────────────────────
@@ -215,6 +229,8 @@ const MyTickets = () => {
   const [bookings,     setBookings]     = useState<Booking[]>([]);
   const [movies,       setMovies]       = useState<Movie[]>([]);
   const [genres,       setGenres]       = useState<Genre[]>([]);
+  const [rooms,        setRooms]        = useState<Room[]>([]);
+  const [templates,    setTemplates]    = useState<RoomTemplate[]>([]);
   const [userProfile,  setUserProfile]  = useState<{ displayName: string; username: string } | null>(null);
   const [filter,       setFilter]       = useState<'all' | 'upcoming' | 'attended' | 'cancelled'>('all');
   const [reviewMovie,  setReviewMovie]  = useState<Movie | null>(null);
@@ -226,8 +242,15 @@ const MyTickets = () => {
   useEffect(() => {
     const u1 = subscribeToMovies(setMovies);
     const u2 = subscribeToGenres(setGenres);
-    return () => { u1(); u2(); };
+    const u3 = subscribeToRooms(setRooms);
+    const u4 = subscribeToTemplates(setTemplates);
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
+
+  const templateForRoom = (roomId: string): RoomTemplate | null => {
+    const room = rooms.find(r => r.id === roomId);
+    return templates.find(t => t.id === room?.templateId) ?? null;
+  };
 
   useEffect(() => {
     if (!uid) return;
@@ -339,6 +362,8 @@ const MyTickets = () => {
           const genre   = genres.find(g => g.id === movie?.genreId);
           const hasReview = !!myReviews[b.movieId];
           const canReview = b.status === 'checked-in';
+          const template  = templateForRoom(b.roomId);
+          const seatLabels = b.seats.map(s => seatLabel(s, template));
 
           return (
             <div key={b.id} className="ticket-card" style={{ marginBottom: 14 }}>
@@ -387,6 +412,23 @@ const MyTickets = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Seat numbers */}
+              {seatLabels.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 12 }}>
+                  <span className="ticket-info-label" style={{ marginRight: 2 }}>Seat numbers</span>
+                  {seatLabels.map((lbl, i) => (
+                    <span key={i} style={{
+                      fontSize: '0.72rem', fontWeight: 600, fontFamily: 'monospace',
+                      padding: '2px 9px', borderRadius: 99,
+                      background: 'var(--gold-dim)', color: 'var(--gold)',
+                      border: '1px solid var(--border)',
+                    }}>
+                      {lbl}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Actions */}
               {(canReview || b.status === 'confirmed') && (
@@ -458,8 +500,11 @@ const MyTickets = () => {
             <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: 2 }}>
               {qrBooking.movieTitle}
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 6 }}>
               {qrBooking.showDate} · {qrBooking.showTime} · {qrBooking.seats.length} seat(s)
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--gold)', fontWeight: 600, marginBottom: 16 }}>
+              {qrBooking.seats.map(s => seatLabel(s, templateForRoom(qrBooking.roomId))).join(' · ')}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>

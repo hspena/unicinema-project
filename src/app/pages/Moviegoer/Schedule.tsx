@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge } from '../../components/ui';
+import { Card, Badge, Button, Modal } from '../../components/ui';
+import SeatMap from '../../components/ui/SeatMap';
 import { useAuth }     from '../../context/AuthContext';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../../services/movieService';
-import { Room, subscribeToRooms } from '../../services/templateService';
+import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
 import {
   Schedule as ScheduleItem,
   subscribeToAllSchedules,
   formatDate, todayString,
 } from '../../services/scheduleService';
+import { createBooking, getBookedSeats } from '../../services/bookingService';
+import { getUserById } from '../../services/userService';
+import { createNotification } from '../../services/notificationService';
+import { getNotificationPrefs } from '../../utils/preferences';
 import {
   IconGlyph, CircleDot, Hourglass, CheckCircle2, XCircle, Folder, Calendar,
+  Ticket, PartyPopper,
 } from '../../utils/icons';
 
 // ─── Time-bucket helper ───────────────────────────────────────────────────────
@@ -85,24 +91,102 @@ const FilterBtn = ({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const SchedulePage = () => {
-  const { role } = useAuth();
+  const { role, uid } = useAuth();
   const isMoviegoer = role === 'Moviegoer';
 
   const [movies,    setMovies]    = useState<Movie[]>([]);
   const [genres,    setGenres]    = useState<Genre[]>([]);
   const [rooms,     setRooms]     = useState<Room[]>([]);
+  const [templates, setTemplates] = useState<RoomTemplate[]>([]);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
 
   // Moviegoers default to 'today', others default to 'today' but can see all
   const [bucket, setBucket] = useState<TimeBucket>('today');
+
+  // ── Booking flow state ──
+  const [userProfile,      setUserProfile]      = useState<{ displayName: string; username: string } | null>(null);
+  const [bookingSchedule,  setBookingSchedule]  = useState<ScheduleItem | null>(null);
+  const [bookedSeats,      setBookedSeats]      = useState<string[]>([]);
+  const [chosenSeats,      setChosenSeats]      = useState<string[]>([]);
+  const [seatsLoading,     setSeatsLoading]     = useState(false);
+  const [showSeatModal,    setShowSeatModal]    = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isBooking,        setIsBooking]        = useState(false);
+  const [bookingDone,      setBookingDone]      = useState<{ ticketCode: string; isFree: boolean } | null>(null);
 
   useEffect(() => {
     const u1 = subscribeToMovies(setMovies);
     const u2 = subscribeToGenres(setGenres);
     const u3 = subscribeToRooms(setRooms);
     const u4 = subscribeToAllSchedules(setSchedules);
-    return () => { u1(); u2(); u3(); u4(); };
+    const u5 = subscribeToTemplates(setTemplates);
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+    getUserById(uid).then(u => {
+      if (u) setUserProfile({
+        displayName: (u as any).displayName || u.name,
+        username:    (u as any).username    || u.name,
+      });
+    });
+  }, [uid]);
+
+  const bookingMovie = bookingSchedule ? movies.find(m => m.id === bookingSchedule.movieId) ?? null : null;
+  const bookingRoom  = bookingSchedule ? rooms.find(r => r.id === bookingSchedule.roomId) ?? null : null;
+  const bookingTemplate = bookingRoom ? templates.find(t => t.id === bookingRoom.templateId) ?? null : null;
+
+  // ── Open seat picker for a show ──
+  const handleOpenBooking = async (s: ScheduleItem) => {
+    setBookingSchedule(s);
+    setChosenSeats([]);
+    setBookingDone(null);
+    setSeatsLoading(true);
+    setShowSeatModal(true);
+    try {
+      setBookedSeats(await getBookedSeats(s.id));
+    } finally {
+      setSeatsLoading(false);
+    }
+  };
+
+  // ── Confirm booking ──
+  const handleBook = async () => {
+    if (!uid || !bookingSchedule || !bookingMovie || !userProfile) return;
+    setIsBooking(true);
+    try {
+      const isFree = bookingSchedule.freeTickets ?? false;
+      const booking = await createBooking({
+        scheduleId: bookingSchedule.id,
+        roomId:     bookingSchedule.roomId,
+        movieId:    bookingMovie.id,
+        movieTitle: bookingMovie.title,
+        showDate:   bookingSchedule.date,
+        showTime:   bookingSchedule.startTime,
+        userId:     uid,
+        userName:   userProfile.displayName,
+        userEmail:  '',
+        seats:      chosenSeats,
+        totalPrice: isFree ? 0 : chosenSeats.length * 10,
+        isFree,
+        status:     'confirmed',
+      });
+      setBookingDone({ ticketCode: booking.ticketCode, isFree });
+      setShowConfirmModal(false);
+      setShowSeatModal(false);
+
+      if ((await getNotificationPrefs(uid)).bookingConfirmations) {
+        createNotification(uid, {
+          type:    'booking',
+          title:   'Booking confirmed',
+          message: `${bookingMovie.title} · ${chosenSeats.join(', ')} · ${booking.ticketCode}`,
+        });
+      }
+    } finally {
+      setIsBooking(false);
+    }
+  };
 
   // Bucket counts
   const pastCount     = schedules.filter(s => getBucket(s.date, s.startTime, s.endTime) === 'past').length;
@@ -256,6 +340,18 @@ const SchedulePage = () => {
                             </div>
 
                             <Badge variant={variant} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{icon} {label}</Badge>
+
+                            {/* Moviegoers can book directly from the schedule */}
+                            {isMoviegoer && (status === 'running' || status === 'upcoming') && movie && room.status === 'active' && (
+                              <Button
+                                size="sm"
+                                icon={<Ticket size={13} />}
+                                onClick={() => handleOpenBooking(s)}
+                                style={{ marginLeft: 8, flexShrink: 0 }}
+                              >
+                                Book
+                              </Button>
+                            )}
                           </div>
                         );
                       })}
@@ -266,6 +362,128 @@ const SchedulePage = () => {
           );
         })
       )}
+
+      {/* ══ Seat Picker Modal ══ */}
+      <Modal
+        title={bookingSchedule
+          ? `Choose Seats — ${bookingMovie?.title ?? ''} @ ${bookingSchedule.startTime}`
+          : 'Choose Seats'}
+        open={showSeatModal}
+        onClose={() => { setShowSeatModal(false); setChosenSeats([]); }}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setShowSeatModal(false); setChosenSeats([]); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={chosenSeats.length === 0}
+              onClick={() => setShowConfirmModal(true)}
+            >
+              Continue ({chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''}) →
+            </Button>
+          </>
+        }
+      >
+        {bookingSchedule && (
+          <>
+            <div style={{ padding: '8px 12px', marginBottom: 14, background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+              <span>{formatDate(bookingSchedule.date)}</span>
+              <span>{bookingSchedule.startTime} – {bookingSchedule.endTime}</span>
+              <span>{bookingRoom?.name ?? '—'}</span>
+            </div>
+
+            {seatsLoading ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)' }}>
+                Loading seat availability…
+              </div>
+            ) : bookingTemplate ? (
+              <SeatMap
+                template={bookingTemplate}
+                bookedSeats={bookedSeats}
+                onConfirm={seats => setChosenSeats(seats)}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                No seat layout configured for this room yet.
+              </div>
+            )}
+          </>
+        )}
+      </Modal>
+
+      {/* ══ Confirm Booking Modal ══ */}
+      <Modal
+        title="Confirm Booking"
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowConfirmModal(false)}>Back</Button>
+            <Button onClick={handleBook} disabled={isBooking} icon={isBooking ? <Hourglass size={14} /> : <Ticket size={14} />}>
+              {isBooking ? 'Booking…' : 'Confirm Booking'}
+            </Button>
+          </>
+        }
+      >
+        {bookingSchedule && bookingMovie && (
+          <div>
+            <div style={{ padding: '14px 16px', background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>{bookingMovie.title}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                {formatDate(bookingSchedule.date)} · {bookingSchedule.startTime}–{bookingSchedule.endTime}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                {bookingRoom?.name}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+              {[
+                { label: 'Seats', value: `${chosenSeats.length} seat(s)` },
+                { label: 'Price', value: bookingSchedule.freeTickets
+                    ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={14} /> FREE</span>
+                    : `RM ${(chosenSeats.length * 10).toFixed(2)}` },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ padding: '10px 12px', background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--gold)', marginTop: 3 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              Selected seats: <span style={{ color: 'var(--gold)' }}>{chosenSeats.join(', ')}</span>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ══ Booking Confirmed Modal ══ */}
+      <Modal
+        title="Booking Confirmed"
+        open={!!bookingDone}
+        onClose={() => setBookingDone(null)}
+        footer={<Button onClick={() => setBookingDone(null)}>Done</Button>}
+      >
+        {bookingDone && (
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ marginBottom: 8, color: 'var(--success)' }}><PartyPopper size={32} /></div>
+            <div style={{ fontWeight: 600, color: 'var(--success)', marginBottom: 6 }}>Booking Confirmed!</div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+              {bookingMovie?.title} · {bookingSchedule && formatDate(bookingSchedule.date)} · {bookingSchedule?.startTime}
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: '1.3rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em' }}>
+              {bookingDone.ticketCode}
+            </div>
+            {bookingDone.isFree && (
+              <Badge variant="gold" style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Ticket size={12} /> Free Entry
+              </Badge>
+            )}
+            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: 12 }}>
+              View it any time under <strong style={{ color: 'var(--gold)' }}>My Tickets</strong>.
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
