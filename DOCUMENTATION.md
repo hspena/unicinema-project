@@ -1,9 +1,8 @@
-# UniCinema — Project Documentation
+# UniCinema — Technical Documentation
 
 > A web-based cinema management and booking system built with React, TypeScript,
-> and Firebase. This document explains *what* the project is, *how* it is
-> structured, and *why* the code is organised the way it is — written so it can
-> be used directly in a report and to help you explain the code with confidence.
+> and Firebase. This document describes the system's purpose, architecture, data
+> model, external integrations, and the algorithms behind its core workflows.
 
 ---
 
@@ -13,44 +12,48 @@
 2. [Technology Stack](#2-technology-stack)
 3. [High-Level Architecture](#3-high-level-architecture)
 4. [Folder Structure](#4-folder-structure)
-5. [How the App Boots and Routes](#5-how-the-app-boots-and-routes)
-6. [Authentication & Roles](#6-authentication--roles-authcontexttsx)
+5. [Application Bootstrap and Routing](#5-application-bootstrap-and-routing)
+6. [Authentication and Roles](#6-authentication-and-roles-authcontexttsx)
 7. [The Data Layer — Services](#7-the-data-layer--services)
-8. [CineBot — The AI Chatbot](#8-cinebot--the-ai-chatbot-geminiservicets)
-9. [Notable Feature: Automated Scheduling](#9-notable-feature-automated-scheduling)
-10. [Notable Feature: QR-Code Tickets](#10-notable-feature-qr-code-tickets)
-11. [External APIs & Services Used](#11-external-apis--services-used)
-12. [Data Classes & Entity Relationships (ERD)](#12-data-classes--entity-relationships-erd)
-13. [Algorithm & Logic Flow of the System](#13-algorithm--logic-flow-of-the-system)
-14. [Running the Project](#14-running-the-project)
-15. [Glossary](#15-glossary-for-the-report)
-16. [Suggested "How to Explain This Project" Script](#16-suggested-how-to-explain-this-project-script)
+8. [CineBot — AI Chatbot Integration](#8-cinebot--ai-chatbot-integration-geminiservicets)
+9. [Feature: Automated Scheduling](#9-feature-automated-scheduling)
+10. [Feature: QR-Code Tickets](#10-feature-qr-code-tickets)
+11. [Feature: Movie Performance and Review Insights](#11-feature-movie-performance-and-review-insights)
+12. [External APIs and Services](#12-external-apis-and-services)
+13. [Data Model and Entity Relationships (ERD)](#13-data-model-and-entity-relationships-erd)
+14. [System Logic and Algorithms](#14-system-logic-and-algorithms)
+15. [Running the Project](#15-running-the-project)
+16. [Glossary](#16-glossary)
+17. [Summary](#17-summary)
 
 ---
 
 ## 1. Project Overview
 
-**UniCinema** is a single-page web application (SPA) that manages the full
-lifecycle of a cinema: managing users, movies, cinema rooms, schedules, snacks,
-and ticket bookings — including QR-code check-in and an AI chatbot assistant.
+UniCinema is a single-page web application (SPA) that manages the operational
+lifecycle of a cinema: users, movies, cinema rooms, showtime schedules, snacks,
+and ticket bookings — including QR-code check-in and an AI-assisted movie
+recommendation chatbot.
 
-The system is built around **four user roles**, each with a tailored dashboard
-and set of permissions:
+The system is organised around **four user roles**, each with a dedicated
+dashboard and permission scope:
 
-| Role | Internal key | What they do |
-|------|--------------|--------------|
-| **Admin** | `Admin` | Top-level control: manage users, rooms, movies, snacks, and view system-wide analytics. |
-| **Cinema Room (Manager)** | `Cinema Room` | Manage one cinema's day-to-day operation: schedules, staff, tickets, and analytics. |
-| **Staff** | `Staff` | Front-of-house: view the day's schedule, scan tickets, and do walk-up bookings. |
-| **Moviegoer** | `Moviegoer` | Public customer: browse movies, view schedules, book tickets, chat with CineBot, and view their tickets. |
+| Role | Internal key | Responsibilities |
+|------|--------------|------------------|
+| **Admin** | `Admin` | System-wide administration: users, rooms, movies, snacks, and analytics. |
+| **Cinema Room (Manager)** | `Cinema Room` | Per-cinema operations: schedules, staff, tickets, and analytics. |
+| **Staff** | `Staff` | Front-of-house operations: daily schedule, ticket scanning, and walk-up bookings. |
+| **Moviegoer** | `Moviegoer` | Customer-facing: browse movies, view schedules, book tickets, use CineBot, and manage tickets. |
 
 ### Key Features
-- **Role-based access** — the interface and navigation change per role.
-- **Real-time data** — powered by Firebase Realtime Database; changes appear instantly across clients.
-- **Custom cinema room layouts** — managers design seat layouts using a visual template builder.
-- **Automated scheduling** — auto-generate a day's showtimes from a set of constraints.
-- **QR-code tickets** — bookings generate a QR code; staff scan it to check guests in.
-- **AI chatbot (CineBot)** — a movie-recommendation assistant powered by Google's Gemini API.
+- **Role-based access** — interface and navigation are determined by the authenticated user's role.
+- **Real-time data** — Firebase Realtime Database propagates changes to all connected clients without polling.
+- **Configurable room layouts** — managers design seat layouts through a visual template builder.
+- **Automated scheduling** — showtimes are generated from a set of operational constraints.
+- **QR-code tickets** — each booking produces a QR code that staff scan for check-in.
+- **AI chatbot (CineBot)** — a movie-recommendation assistant backed by the Google Gemini API.
+- **Per-movie ticket pricing** — each movie carries its own editable seat price.
+- **Performance and review insights** — a dedicated module aggregates attendance and ratings into stats, trend charts, and downloadable PDF reports.
 
 ---
 
@@ -58,18 +61,21 @@ and set of permissions:
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **UI framework** | React 18 + TypeScript | Component-based interface with static typing. |
-| **Build tooling** | Create React App (`react-scripts`) | Bundling, dev server, build pipeline. |
-| **Backend / Database** | Firebase Realtime Database | Stores all application data (users, movies, bookings, etc.). |
-| **Authentication** | Firebase Authentication | Email/password login and session management. |
-| **AI** | Google Gemini API (`gemini-2.5-flash`) | Powers the CineBot chatbot. |
-| **Icons** | `lucide-react` | Icon set used throughout the UI. |
-| **QR codes** | `qrcode` + `html5-qrcode` | Generating ticket QR codes and scanning them via camera. |
+| **UI framework** | React 18 + TypeScript | Component-based UI with static typing. |
+| **Build tooling** | Create React App (`react-scripts`) | Bundling, development server, and build pipeline. |
+| **Database** | Firebase Realtime Database | Persistence for all application data. |
+| **Authentication** | Firebase Authentication | Email/password authentication and session management. |
+| **AI** | Google Gemini API (`gemini-2.5-flash`) | Backs the CineBot chatbot. |
+| **Icons** | `lucide-react` | Icon set used across the UI. |
+| **QR codes** | `qrcode` + `html5-qrcode` | Ticket QR generation and camera-based scanning. |
+| **PDF reports** | `jspdf` + `jspdf-autotable` | Client-side generation of movie performance reports. |
 
-> **Note:** There is no custom backend server. The React app talks directly to
-> Firebase. This keeps the architecture simple (good for a student project) but
-> means security rules must be enforced in Firebase itself, and API keys end up
-> in the client bundle (acknowledged in the code comments for the Gemini key).
+> **Architectural note:** The application has no dedicated backend server; the
+> React client communicates directly with Firebase. This reduces operational
+> complexity, but shifts two responsibilities onto configuration: access control
+> must be enforced through Firebase Security Rules, and any client-side API key
+> (such as the Gemini key) is included in the JavaScript bundle. The trade-offs
+> are documented in the relevant sections below.
 
 ---
 
@@ -99,16 +105,16 @@ and set of permissions:
                           └──────────────────────────────────────────────┘
 ```
 
-The app follows a clean **separation of concerns**:
+The codebase enforces a clear **separation of concerns**:
 
-1. **Pages / Components** — what the user sees (presentation).
-2. **Services** — all communication with Firebase (data access). Pages never talk to Firebase directly; they call service functions.
-3. **Contexts** — shared global state (who is logged in, current theme/view).
+1. **Pages / Components** — presentation layer.
+2. **Services** — data access layer. All Firebase communication is encapsulated here; pages never call Firebase directly.
+3. **Contexts** — shared global state (authentication, theme, active view).
 4. **Config** — Firebase initialisation.
 
-This layering is the single most important idea in the codebase: **UI calls
-services, services call Firebase.** If you understand that, you understand the
-whole app.
+The central architectural principle is unidirectional dependency: **UI depends
+on services; services depend on Firebase.** This boundary keeps data-access logic
+out of components and makes each layer independently testable.
 
 ---
 
@@ -119,77 +125,82 @@ unicinema-project/
 ├── public/
 │   └── index.html              # HTML shell that React mounts into
 ├── src/
-│   ├── index.tsx               # App entry point — renders <App/>
+│   ├── index.tsx               # Application entry point — renders <App/>
 │   ├── global.d.ts             # Global TypeScript declarations
 │   ├── styles/
 │   │   └── global.css          # Global styles + CSS variables (colours, fonts)
 │   └── app/
-│       ├── App.tsx             # Root component: chooses Login vs. main layout
+│       ├── App.tsx             # Root component: selects Login vs. main layout
 │       ├── routes.tsx          # Maps "view" strings to page components
 │       │
 │       ├── config/
 │       │   └── firebase.ts     # Firebase initialisation (auth + database)
 │       │
 │       ├── context/
-│       │   ├── AuthContext.tsx # Login state, current user role + view
+│       │   ├── AuthContext.tsx # Authentication state, active role and view
 │       │   └── ThemeContext.tsx# Light/dark theme
 │       │
 │       ├── services/           # ── DATA LAYER (all Firebase access) ──
-│       │   ├── userService.ts      # Users + authentication
-│       │   ├── movieService.ts     # Movies + genres
-│       │   ├── templateService.ts  # Room layouts + rooms
-│       │   ├── scheduleService.ts  # Showtimes + auto-scheduling
-│       │   ├── bookingService.ts   # Ticket bookings + check-in
-│       │   ├── snackService.ts     # Snacks / concessions
-│       │   ├── reviewService.ts    # Movie reviews & ratings
-│       │   ├── notificationService.ts # In-app notifications (per user)
-│       │   └── geminiService.ts    # CineBot AI chatbot (Gemini API)
+│       │   ├── userService.ts        # Users + authentication
+│       │   ├── movieService.ts       # Movies + genres
+│       │   ├── templateService.ts    # Room layouts + rooms
+│       │   ├── scheduleService.ts    # Showtimes + auto-scheduling
+│       │   ├── bookingService.ts     # Ticket bookings + check-in
+│       │   ├── snackService.ts       # Snacks / concessions
+│       │   ├── reviewService.ts      # Movie reviews & ratings
+│       │   ├── notificationService.ts# In-app notifications (per user)
+│       │   └── geminiService.ts      # CineBot AI chatbot (Gemini API)
 │       │
 │       ├── pages/              # ── SCREENS, grouped by role ──
 │       │   ├── Admin/          # Dashboard, Users, Rooms, Movies, Snacks, Analytics
 │       │   ├── Manager/        # Dashboard, Cinema, Staff, Tickets, Analytics
 │       │   ├── Staff/          # StaffIndex (schedule board + scanning)
 │       │   ├── Moviegoer/      # Browse, Schedule, MyTickets, ChatbotPage
+│       │   ├── MovieReviews/   # Performance & review insights (Admin + Manager)
 │       │   ├── Settings.tsx    # Shared settings page
 │       │   └── NotFound.tsx    # Fallback for unknown views
 │       │
 │       ├── components/         # ── REUSABLE UI ──
 │       │   ├── Layout/         # AppLayout, Sidebar, Topbar
-│       │   ├── ui/             # Buttons, Cards, Modals, SeatMap, QR views, etc.
+│       │   ├── ui/             # Buttons, Cards, Modals, SeatMap, QR views, BarChart, LineChart, etc.
 │       │   ├── RoomTemplateBuilder.tsx  # Visual seat-layout designer
 │       │   ├── AutoScheduleModal.tsx    # Auto-schedule generator dialog
+│       │   ├── PaymentModal.tsx         # Demo payment dialog (paid bookings)
 │       │   └── WalkupBooking.tsx        # Counter booking flow
 │       │
 │       ├── hooks/
-│       │   └── useBookingReminders.ts # Fires "starting soon" reminders while open
+│       │   └── useBookingReminders.ts # Emits "starting soon" reminders while open
 │       │
 │       ├── types/
 │       │   └── index.ts        # Shared TypeScript interfaces
 │       │
 │       └── utils/
-│           ├── helpers.ts      # Navigation config, role names, formatters
-│           ├── icons.tsx       # Icon mapping/registry
-│           ├── preferences.ts  # Per-user notification preferences (Firebase)
-│           ├── mockData.ts     # Sample data
-│           └── seedAdmin.ts    # One-time script to create the first admin
+│           ├── helpers.ts          # Navigation config, role names, formatters
+│           ├── icons.tsx           # Icon mapping/registry
+│           ├── preferences.ts      # Per-user notification preferences (Firebase)
+│           ├── reviewAnalytics.ts  # Pure attendance/rating stats + time series
+│           ├── reviewReport.ts     # PDF ranking-report generation (jsPDF)
+│           ├── mockData.ts         # Sample data
+│           └── seedAdmin.ts        # One-time script to create the first admin
 ```
 
 ---
 
-## 5. How the App Boots and Routes
+## 5. Application Bootstrap and Routing
 
-Unlike many React apps, **UniCinema does not use a URL router** (like React
-Router). Instead it uses a simple "view" string stored in `AuthContext`. This is
-a lightweight approach that suits the role-based dashboard model.
+UniCinema does not use a URL router (such as React Router). Navigation is driven
+by a single `view` string held in `AuthContext`. This is a deliberate choice that
+fits the role-based, dashboard-oriented model, where deep linking is not a
+requirement.
 
-### The flow
+### Bootstrap sequence
 
-1. **`src/index.tsx`** renders `<App/>` wrapped in the `AuthProvider` and `ThemeProvider`.
-2. **`App.tsx`** reads the auth state from `useAuth()`:
-   - While Firebase is still checking the session → show a **loading spinner**.
-   - If **not logged in** → show the **`<Login/>`** page.
-   - If **logged in** → render the **`<AppLayout/>`** (sidebar + topbar) with the current page inside it.
-3. The current page is resolved by **`routes.tsx`**:
+1. `src/index.tsx` renders `<App/>` wrapped in `AuthProvider` and `ThemeProvider`.
+2. `App.tsx` reads authentication state via `useAuth()`:
+   - While Firebase resolves the session → render a loading indicator.
+   - If unauthenticated → render `<Login/>`.
+   - If authenticated → render `<AppLayout/>` (sidebar + topbar) with the active page.
+3. The active page is resolved by `routes.tsx`:
 
 ```ts
 // routes.tsx — maps a "view" key to a page element
@@ -202,18 +213,18 @@ const ROUTE_MAP: Record<string, ReactElement> = {
 };
 
 export const resolveView = (view: string): ReactElement =>
-  ROUTE_MAP[view] ?? <NotFound />;   // unknown view → 404 page
+  ROUTE_MAP[view] ?? <NotFound />;   // unknown view → fallback page
 ```
 
-4. The user changes the view by clicking the **sidebar**, which calls
-   `setView('movies')` (from `AuthContext`). React re-renders, `resolveView`
-   returns the new page, and the screen changes — no page reload.
+4. Navigation occurs when the sidebar calls `setView('movies')` on `AuthContext`.
+   React re-renders, `resolveView` returns the corresponding page, and the view
+   changes without a full page reload.
 
-### Navigation per role
+### Per-role navigation
 
 `utils/helpers.ts` defines `NAV_CONFIG`, a per-role map of sidebar sections and
-items. The sidebar simply reads the current role and renders that role's menu.
-This is how each role sees a different navigation menu.
+items. The sidebar renders the menu for the current role, which is how each role
+is presented with a distinct navigation set.
 
 ```ts
 export const DEFAULT_VIEWS: Record<UserRole, string> = {
@@ -224,291 +235,335 @@ export const DEFAULT_VIEWS: Record<UserRole, string> = {
 };
 ```
 
-When a user logs in, they land on their role's default view.
+On successful login, each user is routed to their role's default view.
 
 ---
 
-## 6. Authentication & Roles (`AuthContext.tsx`)
+## 6. Authentication and Roles (`AuthContext.tsx`)
 
-`AuthContext` is the **single source of truth** for "who is logged in and what
-can they see." Every component can read it via the `useAuth()` hook.
+`AuthContext` is the single source of truth for authentication state and access
+scope. Any component can consume it through the `useAuth()` hook.
 
-### What it tracks
-- `isLoggedIn` / `isLoading` — session state.
-- `role` — the **effective** role currently being used.
-- `actualRole` — the user's **real** role (Admins can temporarily switch role to preview other dashboards via `switchRole`).
+### State exposed
+- `isLoggedIn` / `isLoading` — session status.
+- `role` — the **effective** role in use.
+- `actualRole` — the user's **real** role. Admins may temporarily switch the
+  effective role via `switchRole` to preview other dashboards.
 - `uid` — the Firebase user ID.
-- `currentView` — which page is shown.
-- `error` — login error message.
+- `currentView` — the active page key.
+- `error` — the most recent authentication error message.
 
-### How session restore works
+### Session restoration
 
-On app load, `onAuthStateChanged` (Firebase) fires. If Firebase remembers a
-logged-in user, the app looks up that user's role in the database and restores
-their session — so a page refresh doesn't log you out:
+On load, `onAuthStateChanged` resolves any persisted Firebase session. If a user
+is present, the application reads their role from the database and rehydrates the
+session, so a page refresh does not force re-authentication:
 
 ```ts
 useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
       const userRole = await getCurrentUserRole(firebaseUser.uid);
-      // ...set role, uid, default view, mark logged in
+      // set role, uid, default view, and mark the session active
     } else {
       setIsLoggedIn(false);
     }
     setIsLoading(false);
   });
-  return () => unsubscribe();   // clean up listener on unmount
+  return () => unsubscribe();   // detach the listener on unmount
 }, []);
 ```
 
 ### Login
 
-`login()` calls `loginUser()` from the user service, then sets the role and
-default view. Firebase error codes are translated into friendly messages
+`login()` delegates to `loginUser()` in the user service, then sets the role and
+default view. Firebase error codes are mapped to user-facing messages
 (e.g. `auth/invalid-credential` → "Invalid email or password").
 
 ---
 
 ## 7. The Data Layer — Services
 
-This is the heart of the application. Every service file follows the **same
-consistent pattern**, which makes the codebase easy to learn — learn one
-service and you understand them all.
+The services directory is the application's data-access layer. Each service file
+follows the **same structural pattern**, which keeps the layer predictable: the
+conventions in one service apply to all of them.
 
-### The common pattern
+### Common pattern
 
 Each service typically contains:
 
-1. **Type definitions** — the shape of the data (e.g. `Booking`, `Movie`).
-2. **Database references** — small helpers pointing at a path, e.g.
+1. **Type definitions** — the shape of the entity (e.g. `Booking`, `Movie`).
+2. **Reference helpers** — small functions returning a database path, e.g.
    `const bookingsRef = () => ref(db, 'bookings');`
-3. **CRUD functions** — Create, Read, Update, Delete operations.
-4. **Real-time subscriptions** — `subscribeToX(callback)` functions that listen
-   for live changes and call back whenever data updates.
+3. **CRUD operations** — create, read, update, and delete functions.
+4. **Real-time subscriptions** — `subscribeToX(callback)` functions that attach a
+   listener and invoke the callback on every change.
 
 ```ts
-// The "subscribe" pattern, identical across every service:
+// The subscription pattern, consistent across every service:
 export const subscribeToMovies = (callback: (movies: Movie[]) => void) => {
   const dbRef = moviesRef();
   onValue(dbRef, (snap) => {                       // fires on every change
     if (!snap.exists()) { callback([]); return; }
     callback(Object.values(snap.val()) as Movie[]);
   });
-  return () => off(dbRef);                          // returns an "unsubscribe"
+  return () => off(dbRef);                          // returns an unsubscribe fn
 };
 ```
 
-In a component you use it like this, and React keeps the UI in sync with the
-database automatically:
+Components consume subscriptions through `useEffect`, keeping the UI synchronised
+with the database:
 
 ```ts
 useEffect(() => {
   const unsubscribe = subscribeToMovies(setMovies);
-  return unsubscribe;   // stop listening when the component unmounts
+  return unsubscribe;   // detach listener on unmount
 }, []);
 ```
 
-### Service-by-service summary
+### Service summary
 
-#### `userService.ts` — Users & Authentication
-- `loginUser` / `logoutUser` — Firebase auth wrappers.
-- `createUser` — **clever detail:** to create a new user, an Admin would
-  normally get *signed in as that new user* by Firebase. To avoid this, the code
-  spins up a **secondary Firebase app instance**, creates the user there, then
-  deletes the secondary app — keeping the admin's own session intact.
-- `registerMoviegoer` — public self-registration (always creates a `Moviegoer`).
-- **Username uniqueness** — usernames are tracked in a separate `/usernames`
-  index (`username → uid`) so they can be checked and "claimed" atomically.
-- `changePassword` — re-authenticates before changing the password (a Firebase requirement).
+#### `userService.ts` — Users and Authentication
+- `loginUser` / `logoutUser` — Firebase Authentication wrappers.
+- `createUser` — to avoid Firebase automatically signing the admin in as the
+  newly created account, user creation is performed through a **secondary Firebase
+  app instance**, which is deleted immediately afterwards. This preserves the
+  admin's active session.
+- `registerMoviegoer` — public self-registration, restricted to the `Moviegoer` role.
+- **Username uniqueness** — usernames are indexed separately under `/usernames`
+  (`username → uid`) to support atomic availability checks and claims.
+- `changePassword` — re-authenticates before updating the password, as required by Firebase.
 
-#### `movieService.ts` — Movies & Genres
-- CRUD for **movies** and **genres** (genres carry a default emoji + colour used as a "poster").
-- `CONTENT_RATINGS` — the U / PG / 18 / etc. classification list.
-- `seedDefaultGenres` — populates 10 starter genres on first run.
+#### `movieService.ts` — Movies and Genres
+- CRUD for **movies** and **genres** (a genre supplies a default emoji and colour used for poster styling).
+- Each `Movie` carries an editable `price` (per-seat ticket price in RM), used when computing booking totals.
+- `CONTENT_RATINGS` — the content classification list (U, PG, PG-13, 16, 18, NC-17).
+- `seedDefaultGenres` — seeds ten default genres on first run.
 
-#### `templateService.ts` — Room Layouts & Rooms
-- A **`RoomTemplate`** describes a seat layout as a grid of *sections*, each
-  section being its own grid of seats. Keys like `"r0c1"` locate a section in
-  the layout. `templateSeatCount` totals up all the seats.
-- A **`Room`** is a physical cinema linked to a template and (optionally) a manager.
+#### `templateService.ts` — Room Layouts and Rooms
+- A `RoomTemplate` models a seat layout as a grid of **sections**, where each
+  section is itself a grid of seats. Section keys such as `"r0c1"` encode the
+  section's position. `templateSeatCount` computes the total seat count.
+- A `Room` is a physical cinema bound to a template and, optionally, a manager.
 
-#### `scheduleService.ts` — Showtimes & Auto-Scheduling
-- Defines a **`Schedule`** (a showing of a movie in a room at a date/time).
-- **Clash detection** (`findClash`) — converts times to minutes and checks for
-  overlaps so two shows can't be booked in the same room at the same time.
-- **`autoStatus`** — derives `upcoming` / `running` / `completed` from the
-  current time.
-- **`generateAutoSchedule`** — a *pure function* that builds a whole day's
-  worth of showtimes from constraints (movies, dates, day start/end, gap,
-  repeats). It packs shows back-to-back, alternates movies round-robin, and
-  drops any show that would run past the day's end. (See §9.)
+#### `scheduleService.ts` — Showtimes and Auto-Scheduling
+- Defines a `Schedule` (a screening of a movie in a room at a given date and time).
+- **Clash detection** (`findClash`) — converts times to minutes and tests for
+  overlaps, preventing two screenings from occupying the same room concurrently.
+- `autoStatus` — derives `upcoming` / `running` / `completed` from the current time.
+- `generateAutoSchedule` — a **pure function** that produces a day's showtimes
+  from a constraint set (movies, dates, day start/end, gap, repeats). It packs
+  screenings sequentially, alternates movies round-robin, and discards any
+  screening that would run past the day's end. See [§9](#9-feature-automated-scheduling).
 
 #### `bookingService.ts` — Ticket Bookings
-- A **`Booking`** records who booked which seats for which showing, the price,
-  payment, and status (`confirmed` / `checked-in` / `cancelled`).
-- `generateTicketCode` — produces a human-readable code like `TKT-7KQ2MA`
-  (ambiguous characters like `0`/`O`, `1`/`I` are deliberately excluded).
-- `getBookedSeats` — returns taken seats for a showing so the seat map can grey them out.
-- `checkInBooking` — marks a ticket as checked-in (used by the QR scanner).
+- A `Booking` records the seats, screening, price, payment, and status
+  (`confirmed` / `checked-in` / `cancelled`).
+- `generateTicketCode` — produces a readable code such as `TKT-7KQ2MA`, excluding
+  visually ambiguous characters (e.g. `0`/`O`, `1`/`I`).
+- `getBookedSeats` — returns occupied seats for a screening so the seat map can
+  disable them.
+- `checkInBooking` — transitions a booking to `checked-in`; invoked by the QR scanner.
 - Multiple `subscribeTo…` variants (all / by room / by user / by schedule).
 
 #### `snackService.ts` — Concessions
-- CRUD plus `restockSnack` (adds to stock) and a `seedDefaultSnacks` starter set.
-- Snacks have categories (Food, Beverage, Combo, …) and an `available` toggle.
+- CRUD plus `restockSnack` (increments stock) and `seedDefaultSnacks` for an initial catalogue.
+- Snacks have a category (Food, Beverage, Combo, etc.) and an `available` flag.
 
-#### `reviewService.ts` — Reviews & Ratings
-- Moviegoers leave a 1–5 star rating + comment, tied to a booking (you must have
-  booked the movie to review it).
-- `getMovieAverageRating` computes the average shown on movie cards.
+#### `reviewService.ts` — Reviews and Ratings
+- Moviegoers submit a 1–5 star rating and comment, tied to a booking (a booking
+  is required to review a movie).
+- `getMovieAverageRating` computes the aggregate rating displayed on movie cards.
+- `subscribeToMovieReviews` (per movie) and `subscribeToAllReviews` (catalogue-wide)
+  provide real-time review data; the latter feeds the review-insights module ([§11](#11-feature-movie-performance-and-review-insights)).
 
-#### `notificationService.ts` — In-app Notifications
-- Per-user notifications stored at `/notifications/{userId}`, each with a
+#### `notificationService.ts` — In-App Notifications
+- Per-user notifications stored at `/notifications/{userId}`, each carrying a
   `type` (booking / cancel / reminder / movie / promo / system), title, message,
-  `read` flag and timestamp.
-- `createNotification` — push a notification to one user (fire-and-forget; failures
-  are swallowed so they never break the action that triggered them).
-- `broadcastPromoToMoviegoers` — send a promotional notification (e.g. "new movie
-  added") to every Moviegoer who has opted in via their notification preferences.
-- `subscribeToUserNotifications` / `markNotificationRead` / `markAllNotificationsRead`
-  power the live bell-dropdown in the Topbar (unread count badge + mark-as-read).
-- **Triggers:** booking confirmed (Browse + walk-up), booking cancelled (My Tickets),
-  new movie added (Movie Management), and "starting soon" reminders (see below).
-- **Preferences** live at `/notificationPrefs/{userId}` (`utils/preferences.ts`) and
-  gate which notifications a user receives; they are edited on the Settings page.
+  `read` flag, and timestamp.
+- `createNotification` — writes a notification for a single user. It is
+  fire-and-forget: failures are caught and logged so a notification error never
+  interrupts the action that triggered it.
+- `broadcastPromoToMoviegoers` — sends a promotional notification (e.g. on new
+  movie additions) to every Moviegoer who has opted in via their preferences.
+- `subscribeToUserNotifications`, `markNotificationRead`, and
+  `markAllNotificationsRead` back the notification dropdown in the Topbar
+  (unread badge and mark-as-read behaviour).
+- **Triggers:** booking confirmed (Browse and walk-up), booking cancelled
+  (My Tickets), new movie added (Movie Management), and "starting soon" reminders.
+- **Preferences** are stored at `/notificationPrefs/{userId}` (`utils/preferences.ts`)
+  and gate which notifications a user receives; they are edited on the Settings page.
 
-#### `geminiService.ts` — CineBot AI (see §8)
+#### `geminiService.ts` — CineBot AI
+See [§8](#8-cinebot--ai-chatbot-integration-geminiservicets).
 
 ---
 
-## 8. CineBot — The AI Chatbot (`geminiService.ts`)
+## 8. CineBot — AI Chatbot Integration (`geminiService.ts`)
 
-CineBot is a movie-recommendation assistant. The service `askCineBot()` sends
-the conversation to Google's **Gemini** model and returns a **structured**
-reply.
+CineBot is a movie-recommendation assistant. The `askCineBot()` function sends
+the conversation to Google's Gemini model and returns a **structured** response.
 
-Key design points worth highlighting in a report:
+Notable design decisions:
 
-- **Structured output** — instead of free text, Gemini is asked (via
-  `responseSchema`) to return JSON with three fields:
+- **Structured output** — rather than free text, the request constrains Gemini
+  (via `responseSchema`) to return JSON with three fields:
   ```ts
   interface CineBotReply {
-    reply:       string;    // the message to show the user
-    movieTitles: string[];  // catalogue movies to display as cards
-    suggestions: string[];  // quick-reply chips
+    reply:       string;    // message displayed to the user
+    movieTitles: string[];  // catalogue movies to render as cards
+    suggestions: string[];  // quick-reply chip labels
   }
   ```
-  This lets the UI render movie cards and tappable suggestions, not just text.
-- **Retry with back-off** — if Gemini returns `503` (overloaded) or `429`
-  (rate-limited), the code retries up to 3 times with an increasing delay.
-- **Graceful errors** — a custom `GeminiError` carries user-friendly messages
-  (e.g. "CineBot's brain is a little overloaded right now").
-- **API key** — read from `REACT_APP_GEMINI_API_KEY` in `.env`. The code
-  comments honestly note that, as a Create-React-App env var, the key is bundled
-  into the client and a production app would proxy this through a backend.
+  This enables the UI to render movie cards and quick-reply chips rather than plain text.
+- **Retry with back-off** — on `503` (overloaded) or `429` (rate-limited)
+  responses, the request is retried up to three times with an increasing delay.
+- **Error handling** — a custom `GeminiError` carries user-facing messages for
+  recoverable failures.
+- **API key** — read from `REACT_APP_GEMINI_API_KEY`. Because Create React App
+  inlines environment variables, this key is bundled into the client. A
+  production deployment would proxy these calls through a backend so the key is
+  never exposed to the browser; restricting the key by domain is a minimum
+  mitigation.
+- **Catalogue grounding** — the system prompt embeds the live movie catalogue,
+  constraining recommendations to titles that actually exist in the database.
 
 ---
 
-## 9. Notable Feature: Automated Scheduling
+## 9. Feature: Automated Scheduling
 
-`generateAutoSchedule` (in `scheduleService.ts`) is a good example to discuss in
-a report because it is a **pure, testable algorithm** with no side effects.
+`generateAutoSchedule` (in `scheduleService.ts`) is implemented as a **pure
+function** with no side effects, which makes it deterministic and unit-testable
+in isolation.
 
-**Input:** a config (room, movie list, dates, day start/end, gap, repeats per
-day) and the movies' durations.
-**Output:** a list of schedule payloads — but it does **not** write to the
-database itself.
+**Input:** a configuration (room, movie list, dates, day start/end, gap, repeats
+per day) and the movies' durations.
+**Output:** a list of schedule payloads. It performs no clash detection and no
+database writes — those are the caller's responsibility.
 
 The algorithm:
-1. Build a **round-robin playlist** — with movies `[A, B, C]` and 2 repeats it
-   produces `A B C A B C`, so movies alternate rather than playing twice in a row.
-2. Starting at `dayStart`, place each movie back-to-back, adding the configured
-   gap after each.
-3. If a show would end after `dayEnd`, stop for that day.
-4. Repeat per selected date.
+1. Build a **round-robin playlist** — with movies `[A, B, C]` and two repeats,
+   the result is `A B C A B C`, so movies alternate rather than repeat consecutively.
+2. From `dayStart`, place each screening sequentially, adding the configured gap after each.
+3. If a screening would end after `dayEnd`, stop for that day.
+4. Repeat for each selected date.
 
-Keeping generation (pure logic) separate from writing (database side-effects)
-makes the feature easier to reason about and test.
-
----
-
-## 10. Notable Feature: QR-Code Tickets
-
-- When a booking is made, it gets a unique `ticketCode`.
-- On the moviegoer's ticket (`QrCodeView.tsx`), the `qrcode` library renders
-  that code as a scannable QR image.
-- Staff use `QrScanner.tsx` (built on `html5-qrcode`) to scan a ticket with the
-  device camera. The scanned code is looked up via `findBookingByCode`, and
-  `checkInBooking` flips its status to `checked-in`.
-
-This gives a realistic end-to-end ticketing flow: **book → QR code → scan →
-checked in.**
+Separating generation (pure logic) from persistence (side effects) keeps the
+algorithm easy to reason about and test.
 
 ---
 
-## 11. External APIs & Services Used
+## 10. Feature: QR-Code Tickets
 
-The app has **no custom backend**. Everything is reached directly from the
-browser through three external APIs plus a couple of browser APIs.
+- Each booking is assigned a unique `ticketCode`.
+- On the moviegoer's ticket (`QrCodeView.tsx`), the `qrcode` library renders the
+  code as a scannable QR image.
+- Staff use `QrScanner.tsx` (built on `html5-qrcode`) to scan tickets via the
+  device camera. The decoded code is resolved with `findBookingByCode`, and
+  `checkInBooking` transitions its status to `checked-in`.
+
+The result is a complete ticketing lifecycle: **book → QR code → scan → checked in.**
+
+---
+
+## 11. Feature: Movie Performance and Review Insights
+
+The `MovieReviews` page (`pages/MovieReviews/`) is an analytics module that turns
+raw bookings and reviews into operational insight. It is shared by two roles via
+the `reviews` (Admin) and `cm-reviews` (Manager) view keys.
+
+### Responsibilities
+- **Per-movie statistics** — attendance (seats from `checked-in` bookings) across
+  cumulative windows (today, 7 days, 30 days, year, all-time), plus average rating
+  and review count.
+- **Trend charts** — a time series of attendance and average rating, bucketed by
+  hour (today), day (7/30 days), or month (year/all-time), rendered with the
+  `LineChart` component (single- or dual-axis).
+- **Sorting** — ranking by rating, total attendance, or title, in either direction.
+- **Editable pricing** — a movie's per-seat `price` can be updated inline via `updateMovie`.
+- **PDF export** — a ranked performance report is generated client-side and downloaded.
+
+### Separation of concerns
+The module keeps computation out of the component:
+
+| Concern | Location |
+|---------|----------|
+| Statistics and time-series computation | `utils/reviewAnalytics.ts` (pure functions) |
+| PDF report generation | `utils/reviewReport.ts` (`jsPDF` + `jspdf-autotable`) |
+| Live data and presentation | `pages/MovieReviews/index.tsx` |
+
+`reviewAnalytics.ts` exposes `computeMovieStats`, `computeTimeSeries`, and
+`sortMovieStats` — all pure functions that take bookings, reviews, movies, and
+genres and return derived data, making the analytics independently testable. The
+page subscribes to movies, genres, bookings (`subscribeToAllBookings`), and
+reviews (`subscribeToAllReviews`), then feeds the combined data through these
+functions. See the computation detail in [§14.9](#14-system-logic-and-algorithms).
+
+---
+
+## 12. External APIs and Services
+
+The application has no custom backend. All integrations are invoked directly from
+the browser: three external APIs and a small set of browser APIs.
 
 ### 11.1 Firebase Authentication API
-Used in `userService.ts` and `AuthContext.tsx` for all account/session logic.
+Used in `userService.ts` and `AuthContext.tsx` for account and session management.
 
-| Function (Firebase SDK) | Where / why it's used |
-|-------------------------|------------------------|
-| `signInWithEmailAndPassword` | `loginUser` — log a user in. |
+| Function (Firebase SDK) | Usage |
+|-------------------------|-------|
+| `signInWithEmailAndPassword` | `loginUser` — authenticate a user. |
 | `signOut` | `logoutUser` — end the session. |
-| `createUserWithEmailAndPassword` | `createUser` / `registerMoviegoer` — make new accounts. |
-| `onAuthStateChanged` | `AuthContext` — restore session on refresh. |
-| `updatePassword` + `reauthenticateWithCredential` + `EmailAuthProvider` | `changePassword` — Firebase requires re-auth before a password change. |
-| `initializeApp` / `deleteApp` (secondary app) | `createUser` — create a user without disturbing the admin's session. |
+| `createUserWithEmailAndPassword` | `createUser` / `registerMoviegoer` — create accounts. |
+| `onAuthStateChanged` | `AuthContext` — restore the session on load. |
+| `updatePassword` + `reauthenticateWithCredential` + `EmailAuthProvider` | `changePassword` — re-authenticate before a password change. |
+| `initializeApp` / `deleteApp` (secondary app) | `createUser` — create a user without disrupting the admin's session. |
 
 ### 11.2 Firebase Realtime Database API
-Every service file uses the same small set of SDK functions. This is the entire
-database "vocabulary" of the project:
+Every service uses the same set of SDK primitives, which constitute the entire
+database surface of the project:
 
 | Function | Purpose |
 |----------|---------|
-| `ref(db, 'path')` | Point at a location in the JSON tree. |
-| `push(ref)` | Create a new child with an auto-generated **push ID**. |
-| `set(ref, value)` | Write/overwrite data at a location. |
+| `ref(db, 'path')` | Reference a location in the JSON tree. |
+| `push(ref)` | Create a child with an auto-generated **push ID**. |
+| `set(ref, value)` | Write or overwrite data at a location. |
 | `update(ref, partial)` | Patch specific fields without overwriting siblings. |
-| `get(ref)` | Read once (one-off fetch). |
+| `get(ref)` | Perform a one-off read. |
 | `remove(ref)` | Delete data. |
-| `onValue(ref, cb)` / `off(ref)` | Subscribe / unsubscribe to **real-time** changes. |
+| `onValue(ref, cb)` / `off(ref)` | Attach / detach a real-time listener. |
 
 ### 11.3 Google Gemini API (CineBot)
-A REST call (not an SDK) in `geminiService.ts`:
+Invoked as a REST call (no SDK) in `geminiService.ts`:
 
 - **Endpoint:** `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=…`
 - **Model:** `gemini-2.5-flash`
-- **Auth:** API key from `REACT_APP_GEMINI_API_KEY`.
-- **Request highlights:** a `system_instruction` (CineBot's persona + the live
-  movie catalogue), the chat `contents` (history), and a `generationConfig` that
-  forces **JSON output** via `responseMimeType: 'application/json'` and a
+- **Authentication:** API key from `REACT_APP_GEMINI_API_KEY`.
+- **Request composition:** a `system_instruction` (assistant persona plus the
+  live movie catalogue), the chat `contents` (history), and a `generationConfig`
+  that enforces JSON output via `responseMimeType: 'application/json'` and a
   `responseSchema`.
-- **Transport:** the browser `fetch` API, with a 3-attempt retry on `429`/`503`.
+- **Transport:** the browser `fetch` API, with a three-attempt retry on `429`/`503`.
 
 ### 11.4 Browser APIs
-- **Camera / MediaDevices** — used indirectly through `html5-qrcode` in
-  `QrScanner.tsx` to read ticket QR codes from the device camera.
-- **Canvas** — `qrcode` renders the ticket QR image to a canvas/data-URL.
-- **`localStorage`** — theme preference (`ThemeContext`) and notification prefs caching.
+- **MediaDevices (camera)** — accessed via `html5-qrcode` in `QrScanner.tsx` to read ticket QR codes.
+- **Canvas** — used by `qrcode` to render the ticket QR image to a data URL.
+- **`localStorage`** — persists the theme preference (`ThemeContext`) and caches notification preferences.
 
 ---
 
-## 12. Data Classes & Entity Relationships (ERD)
+## 13. Data Model and Entity Relationships (ERD)
 
-All data classes are TypeScript `interface`s declared inside their service file.
-They double as both the **database schema** and the **app's type system**.
+All entities are defined as TypeScript `interface`s within their respective
+service files, serving as both the database schema and the application's type
+definitions.
 
-### 12.1 The data classes (entities)
+### 13.1 Entities
 
 | Entity | Key fields | Defined in |
 |--------|-----------|------------|
 | **User** | `id, name, displayName, username, email, role, status, joined` | `types/index.ts` |
 | **Genre** | `id, name, emoji, color` | `movieService.ts` |
-| **Movie** | `id, title, genreId →Genre, duration, year, rating, synopsis, director, cast, emoji, color, createdBy` | `movieService.ts` |
+| **Movie** | `id, title, genreId →Genre, duration, year, price, rating, synopsis, director, cast, emoji, color, createdBy` | `movieService.ts` |
 | **RoomTemplate** | `id, name, gridRows, gridCols, sections{}, createdBy` | `templateService.ts` |
 | **Room** | `id, name, templateId →RoomTemplate, status, managerId →User` | `templateService.ts` |
 | **Schedule** | `id, roomId →Room, movieId →Movie, date, startTime, endTime, freeTickets, status, createdBy` | `scheduleService.ts` |
@@ -517,14 +572,15 @@ They double as both the **database schema** and the **app's type system**.
 | **Review** | `id, movieId →Movie, userId →User, rating, comment, bookingId →Booking, createdAt` | `reviewService.ts` |
 | **AppNotification** | `id, type, title, message, read, createdAt` (stored per user) | `notificationService.ts` |
 
-> The `→` arrows mark foreign-key-style references. Because the Realtime
-> Database is a flat JSON tree, these "joins" are resolved **in code** (e.g. a
-> schedule stores a `movieId`, and the UI looks up the matching `Movie`).
+> The `→` notation denotes foreign-key-style references. Because the Realtime
+> Database stores a flat JSON tree, these relationships are resolved in
+> application code (e.g. a schedule stores a `movieId`, and the UI resolves the
+> corresponding `Movie`).
 
-### 12.2 Entity-Relationship Diagram
+### 13.2 Entity-Relationship Diagram
 
-> Rendered with **Mermaid** — GitHub (and most Markdown viewers) display this as
-> a real diagram. `||--o{` means *one-to-many*; `||--||` means *one-to-one*.
+> Rendered with **Mermaid**, which GitHub and most Markdown viewers display as a
+> diagram. `||--o{` denotes a one-to-many relationship; `||--||` denotes one-to-one.
 
 ```mermaid
 erDiagram
@@ -559,6 +615,7 @@ erDiagram
         string genreId FK
         string title
         int    duration
+        number price
         enum   rating
     }
     ROOM_TEMPLATE {
@@ -609,44 +666,43 @@ erDiagram
     }
 ```
 
-> **Note:** `SNACK` is intentionally standalone — it has no relationships to the
-> other entities (it's a simple concession catalogue).
+> `SNACK` is intentionally standalone — it holds no relationships to other
+> entities and functions as a simple concession catalogue.
 
-**Relationship summary (cardinality):**
+**Cardinality summary:**
 - A **Genre** has many **Movies**; each Movie belongs to one Genre.
-- A **RoomTemplate** can be used by many **Rooms**; each Room uses one template.
-- A **Room** + a **Movie** combine into many **Schedules** (showtimes).
-- A **Schedule** has many **Bookings**; each Booking is for one Schedule.
-- A **User** makes many **Bookings** and writes many **Reviews**.
-- A **Review** links one User + one Movie + the Booking that entitles it.
-- A **User** receives many **AppNotifications**.
-- **Snacks** are a standalone catalogue (no hard relationships).
+- A **RoomTemplate** may back many **Rooms**; each Room uses one template.
+- A **Room** and a **Movie** combine into many **Schedules** (screenings).
+- A **Schedule** has many **Bookings**; each Booking belongs to one Schedule.
+- A **User** has many **Bookings** and many **Reviews**.
+- A **Review** references one User, one Movie, and the Booking that authorises it.
+- A **User** has many **AppNotifications**.
+- **Snacks** are an independent catalogue with no relationships.
 
-### 12.3 Firebase storage paths
+### 13.3 Firebase storage paths
 
 | Path | Stores | Defined in |
 |------|--------|-----------|
 | `/users` | User profiles | `userService.ts` |
 | `/usernames` | `username → uid` uniqueness index | `userService.ts` |
-| `/genres` | Movie genres + default poster style | `movieService.ts` |
+| `/genres` | Movie genres and default poster style | `movieService.ts` |
 | `/movies` | Movie catalogue | `movieService.ts` |
 | `/templates` | Reusable seat-layout templates | `templateService.ts` |
 | `/rooms` | Physical cinema rooms | `templateService.ts` |
 | `/schedules` | Showtimes | `scheduleService.ts` |
 | `/bookings` | Ticket bookings | `bookingService.ts` |
 | `/snacks` | Concession items | `snackService.ts` |
-| `/reviews` | Movie reviews & ratings | `reviewService.ts` |
+| `/reviews` | Movie reviews and ratings | `reviewService.ts` |
 | `/notifications/{uid}` | Per-user in-app notifications | `notificationService.ts` |
 | `/notificationPrefs/{uid}` | Per-user notification opt-ins | `utils/preferences.ts` |
 
 ---
 
-## 13. Algorithm & Logic Flow of the System
+## 14. System Logic and Algorithms
 
-This section traces the **main flows** end to end — useful for a "system design"
-chapter of a report.
+This section documents the primary end-to-end workflows and the algorithms behind them.
 
-### 13.1 Startup & authentication flow
+### 14.1 Startup and authentication
 
 ```
 index.tsx renders <App/> inside <ThemeProvider><AuthProvider>
@@ -663,33 +719,33 @@ isLoggedIn = true                      │
    └──────────────┬────────────────────┘
                   ▼
             App.tsx renders:
-   isLoading → spinner
+   isLoading → loading indicator
    !isLoggedIn → <Login/>
-   logged in → <AppLayout> + resolveView(currentView)
+   authenticated → <AppLayout> + resolveView(currentView)
 ```
 
-### 13.2 View navigation (instead of a URL router)
-1. User clicks a sidebar item → `setView('movies')` updates `currentView` in `AuthContext`.
-2. React re-renders `App` → `resolveView('movies')` looks up `ROUTE_MAP`.
-3. The matching page element renders; unknown keys fall back to `<NotFound/>`.
+### 14.2 View navigation
+1. A sidebar item invokes `setView('movies')`, updating `currentView` in `AuthContext`.
+2. React re-renders `App`, and `resolveView('movies')` looks up `ROUTE_MAP`.
+3. The matching page renders; unknown keys fall back to `<NotFound/>`.
 
-### 13.3 Moviegoer booking flow (the core transaction)
+### 14.3 Moviegoer booking flow
 
 ```
 Browse / Schedule page
-   │ pick a showtime  ──────────────► subscribeToAllSchedules (live data)
+   │ select a showtime  ─────────────► subscribeToAllSchedules (live data)
    ▼
 Open SeatMap modal
-   │ getBookedSeats(scheduleId) ─────► grey out already-taken seats
+   │ getBookedSeats(scheduleId) ─────► disable occupied seats
    │ user selects seats
    ▼
-Free show?  ── yes ──► skip payment
+Free screening?  ── yes ──► skip payment
    │ no
    ▼
-PaymentModal (demo)  → totalPrice = seats × SEAT_PRICE (RM 10)
+PaymentModal (demo)  → totalPrice = seats × movie.price (RM 10 fallback)
    ▼
 createBooking(payload)
-   ├─ push() generates booking id
+   ├─ push() generates the booking id
    ├─ generateTicketCode() → "TKT-XXXXXX"
    └─ set() writes to /bookings
    ▼
@@ -698,36 +754,36 @@ createNotification(uid, "booking confirmed")   (fire-and-forget)
 Ticket appears in "My Tickets" with a QR code (live via subscribeToUserBookings)
 ```
 
-### 13.4 Staff check-in flow
+### 14.4 Staff check-in flow
 
 ```
 Staff opens QrScanner (camera)
    ▼
 scan QR → ticketCode string
    ▼
-findBookingByCode(code)  → scans /bookings for a matching, non-cancelled code
-   ├─ not found → show error
+findBookingByCode(code)  → searches /bookings for a matching, non-cancelled code
+   ├─ not found → display error
    └─ found → checkInBooking(id): status = 'checked-in', set checkedInAt
    ▼
 Seat map / list updates live (subscribeToRoomBookings)
 ```
 
-### 13.5 Clash detection algorithm (`findClash`)
-When a manager adds a schedule, the system prevents two shows overlapping in the
-same room on the same day:
+### 14.5 Clash detection (`findClash`)
+When a manager creates a schedule, the system rejects screenings that overlap an
+existing screening in the same room on the same date:
 
 ```
 newStart, newEnd  = times converted to minutes since midnight
-for each existing show in the same room + date (excluding self):
+for each existing screening in the same room + date (excluding self):
     if newStart < existing.end  AND  newEnd > existing.start:
-        → OVERLAP — reject (return the clashing show)
+        → OVERLAP — reject (return the clashing screening)
 return null   (no clash → allow)
 ```
-The condition is the classic **interval-overlap test**: two ranges overlap iff
-each starts before the other ends.
+The condition is the standard **interval-overlap test**: two intervals overlap
+if and only if each starts before the other ends.
 
-### 13.6 Auto-schedule generation algorithm (`generateAutoSchedule`)
-A **pure function** (no database writes) that fills a day with showtimes:
+### 14.6 Auto-schedule generation (`generateAutoSchedule`)
+A pure function (no database writes) that fills a day with screenings:
 
 ```
 playlist = round-robin of movieIds, repeated `repeatPerDay` times
@@ -736,48 +792,74 @@ for each selected date:
     cursor = dayStart (in minutes)
     for each movieId in playlist:
         end = cursor + movie.duration
-        if end > dayEnd: break          # no room left today
+        if end > dayEnd: break          # no capacity left for the day
         emit schedule {start: cursor, end}
-        cursor = end + gapMinutes        # gap before next show
+        cursor = end + gapMinutes        # gap before the next screening
 ```
-The result is a list of `SchedulePayload`s; the caller runs clash detection and
-writes them. (See also §9.)
+The output is a list of `SchedulePayload` objects; the caller performs clash
+detection and persistence. See also [§9](#9-feature-automated-scheduling).
 
-### 13.7 CineBot conversation flow (`askCineBot`)
+### 14.7 CineBot conversation flow (`askCineBot`)
 
 ```
 ChatbotPage builds a system prompt = persona + LIVE movie catalogue
-   (so the AI can only recommend movies that actually exist)
+   (constraining recommendations to existing movies)
    ▼
 askCineBot(systemPrompt, history)
    ▼
-POST to Gemini with responseSchema → forces JSON {reply, movieTitles, suggestions}
+POST to Gemini with responseSchema → enforces JSON {reply, movieTitles, suggestions}
    ├─ 429/503 → retry up to 3× with back-off
    └─ ok → parse JSON
    ▼
 UI renders: reply text + movie cards (matched by title) + quick-reply chips
 ```
 
-### 13.8 Real-time update pattern (used everywhere)
-Every list screen follows the same loop, so the UI always mirrors the database:
+### 14.8 Real-time update pattern
+Every list view follows the same lifecycle, keeping the UI consistent with the database:
 
 ```
 component mounts → subscribeToX(setState)   (onValue listener attached)
 database changes anywhere → callback fires → setState → React re-renders
-component unmounts → returned unsubscribe() runs → off() detaches listener
+component unmounts → returned unsubscribe() runs → off() detaches the listener
 ```
+
+### 14.9 Attendance and rating analytics (`reviewAnalytics.ts`)
+The review-insights module ([§11](#11-feature-movie-performance-and-review-insights))
+derives its figures from two pure functions:
+
+```
+computeMovieStats(movies, bookings, reviews, genres, now):
+   watched = bookings where status == 'checked-in'
+   for each movie:
+       for each watched booking of that movie:
+           d = whole days between show date and today
+           add seat count to the windows it falls in
+           (cumulative: today ⊆ 7d ⊆ 30d ⊆ 365d ⊆ total)
+       avgRating = mean of that movie's review ratings (0 if none)
+
+computeTimeSeries(movieIds, bookings, reviews, range, now):
+   build time buckets for the range
+       today → 24 hourly buckets
+       7d / 30d → daily buckets
+       year / all → monthly buckets
+   place each checked-in booking's seats into its bucket (by show time)
+   average each bucket's review ratings (null if none)
+```
+Attendance is measured from **checked-in** bookings (actual attendance), not
+merely confirmed ones. Both functions are deterministic and side-effect-free, so
+they can be unit-tested without Firebase.
 
 ---
 
-## 14. Running the Project
+## 15. Running the Project
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Create a .env file from the template and fill in your keys
+# 2. Create a .env file from the template and populate the keys
 #    cp .env.example .env   (then edit it)
-#    Needs REACT_APP_GEMINI_API_KEY and the REACT_APP_FIREBASE_* values.
+#    Requires REACT_APP_GEMINI_API_KEY and the REACT_APP_FIREBASE_* values.
 
 # 3. Start the development server (http://localhost:3000)
 npm start
@@ -786,44 +868,42 @@ npm start
 npm run build
 ```
 
-### First-time setup: creating the first admin
-There is no admin in a fresh database. `utils/seedAdmin.ts` is a one-time helper:
-temporarily call `runSeedAdmin()` from `index.tsx`, run the app once to create
-the admin account, then remove the call. After that, all other users are created
-through the Admin UI.
+### Initial setup: creating the first admin
+A new database contains no users. `utils/seedAdmin.ts` is a one-time bootstrap
+helper: temporarily call `runSeedAdmin()` from `index.tsx`, run the application
+once to create the admin account, then remove the call. All subsequent users are
+created through the Admin UI.
 
 ---
 
-## 15. Glossary (for the report)
+## 16. Glossary
 
-| Term | Meaning |
-|------|---------|
-| **SPA** | Single-Page Application — the whole app runs on one HTML page; "navigation" swaps components instead of loading new pages. |
-| **Context (React)** | A way to share state (like the logged-in user) across many components without passing props down manually. |
-| **Service** | A module that wraps all database/API calls for one area of the app, keeping data logic out of the UI. |
-| **CRUD** | Create, Read, Update, Delete — the four basic data operations. |
-| **Subscription / real-time listener** | Code that listens for database changes and updates the UI automatically. |
-| **Pure function** | A function whose output depends only on its inputs and which has no side effects (e.g. `generateAutoSchedule`). |
-| **Push ID** | The unique auto-generated key Firebase creates for each new record. |
-
----
-
-## 16. Suggested "How to Explain This Project" Script
-
-If you need to summarise the project verbally:
-
-> "UniCinema is a React + TypeScript single-page app backed by Firebase. It
-> supports four roles — Admin, Manager, Staff, and Moviegoer — each with its own
-> dashboard. The architecture cleanly separates the UI (pages and components)
-> from the data layer (services), where every service wraps Firebase CRUD and
-> real-time listeners following the same pattern. Login state and the current
-> role live in a React Context, and a lightweight view-string system in
-> `routes.tsx` decides which page to show instead of a URL router. Standout
-> features are the visual room-layout builder, an automated showtime generator,
-> QR-code ticket check-in, and an AI chatbot (CineBot) powered by the Gemini
-> API."
+| Term | Definition |
+|------|------------|
+| **SPA** | Single-Page Application — the application runs on one HTML document; navigation swaps components instead of loading new pages. |
+| **Context (React)** | A mechanism for sharing state (such as the authenticated user) across components without prop drilling. |
+| **Service** | A module that encapsulates all database/API access for one domain, isolating data logic from the UI. |
+| **CRUD** | Create, Read, Update, Delete — the four fundamental data operations. |
+| **Subscription / real-time listener** | Code that observes database changes and updates the UI automatically. |
+| **Pure function** | A function whose output depends solely on its inputs and which produces no side effects (e.g. `generateAutoSchedule`). |
+| **Push ID** | The unique, auto-generated key Firebase assigns to each new record. |
 
 ---
 
-*This document was generated from the source code as of June 2026. If the code
-changes, update the relevant section so the report stays accurate.*
+## 17. Summary
+
+UniCinema is a React and TypeScript single-page application backed by Firebase,
+supporting four roles — Admin, Manager, Staff, and Moviegoer — each with a
+dedicated dashboard. The architecture separates the UI (pages and components)
+from a data-access layer (services), where each service encapsulates Firebase
+CRUD operations and real-time listeners under a consistent pattern.
+Authentication state and the active role are managed in a React Context, and a
+lightweight view-string mechanism in `routes.tsx` resolves the active page in
+place of a URL router. The most substantial features are the visual room-layout
+builder, the automated showtime generator, QR-code ticket check-in, and the
+Gemini-backed CineBot assistant.
+
+---
+
+*This document reflects the source code as of June 2026. When the implementation
+changes, update the corresponding section to keep the documentation accurate.*
