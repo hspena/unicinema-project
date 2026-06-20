@@ -139,6 +139,7 @@ const SchedulePage = () => {
   }, [uid]);
 
   const bookingMovie = bookingSchedule ? movies.find(m => m.id === bookingSchedule.movieId) ?? null : null;
+  const seatPrice    = bookingMovie?.price ?? SEAT_PRICE;
   const bookingRoom  = bookingSchedule ? rooms.find(r => r.id === bookingSchedule.roomId) ?? null : null;
   const bookingTemplate = bookingRoom ? templates.find(t => t.id === bookingRoom.templateId) ?? null : null;
 
@@ -173,7 +174,7 @@ const SchedulePage = () => {
         userName:   userProfile.displayName,
         userEmail:  '',
         seats:      chosenSeats,
-        totalPrice: isFree ? 0 : chosenSeats.length * SEAT_PRICE,
+        totalPrice: isFree ? 0 : chosenSeats.length * seatPrice,
         isFree,
         paid:       true,           // free shows are settled; paid shows reach here only after payment
         ...(paymentRef ? { paymentRef } : {}),
@@ -459,7 +460,7 @@ const SchedulePage = () => {
                 { label: 'Seats', value: `${chosenSeats.length} seat(s)` },
                 { label: 'Price', value: bookingSchedule.freeTickets
                     ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={14} /> FREE</span>
-                    : `RM ${(chosenSeats.length * SEAT_PRICE).toFixed(2)}` },
+                    : `RM ${(chosenSeats.length * seatPrice).toFixed(2)}` },
               ].map(({ label, value }) => (
                 <div key={label} style={{ padding: '10px 12px', background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>
@@ -477,7 +478,7 @@ const SchedulePage = () => {
       {/* ══ Payment Gateway Modal (paid shows only) ══ */}
       <PaymentModal
         open={showPaymentModal}
-        amount={chosenSeats.length * SEAT_PRICE}
+        amount={chosenSeats.length * seatPrice}
         movieTitle={bookingMovie?.title ?? ''}
         seatCount={chosenSeats.length}
         onClose={() => setShowPaymentModal(false)}

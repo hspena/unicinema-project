@@ -24,7 +24,7 @@ const RatingBadge = ({ rating }: { rating: ContentRating }) => {
 
 const emptyMovieForm = (): Omit<MoviePayload, 'createdBy'> => ({
   title: '', genreId: '', duration: 90, year: new Date().getFullYear(),
-  rating: 'PG-13', synopsis: '', director: '', cast: '', emoji: '', color: '',
+  price: 10, rating: 'PG-13', synopsis: '', director: '', cast: '', emoji: '', color: '',
 });
 
 const emptyGenreForm = (): GenrePayload => ({
@@ -135,7 +135,7 @@ const MovieForm = ({
         <div className="mf-preview-info">
           <div className="mf-preview-title">{form.title || 'Movie Title'}</div>
           <div className="mf-preview-meta">
-            {form.year} · {form.duration} min
+            {form.year} · {form.duration} min · RM {(form.price ?? 0).toFixed(2)}
             {selectedGenre && <> · <Badge variant="gold">{selectedGenre.name}</Badge></>}
           </div>
           <RatingBadge rating={form.rating} />
@@ -186,7 +186,7 @@ const MovieForm = ({
         </div>
       </div>
 
-      {/* Year + Rating */}
+      {/* Year + Price */}
       <div className="input-row">
         <div className="input-group">
           <label className="input-label">Release Year *</label>
@@ -196,6 +196,18 @@ const MovieForm = ({
             onChange={e => setForm(p => ({ ...p, year: parseInt(e.target.value) || 2025 }))}
           />
         </div>
+        <div className="input-group">
+          <label className="input-label">Ticket Price (RM) *</label>
+          <input
+            className="input-field" type="number" min={0} step={0.5}
+            value={form.price}
+            onChange={e => setForm(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
+          />
+        </div>
+      </div>
+
+      {/* Rating */}
+      <div className="input-row">
         <div className="input-group">
           <label className="input-label">Content Rating *</label>
           <select
@@ -381,7 +393,7 @@ const MovieManagement = () => {
   const openEditMovie = (m: Movie) => {
     setMovieForm({
       title: m.title, genreId: m.genreId, duration: m.duration,
-      year: m.year, rating: m.rating, synopsis: m.synopsis,
+      year: m.year, price: m.price ?? 10, rating: m.rating, synopsis: m.synopsis,
       director: m.director, cast: m.cast, emoji: m.emoji, color: m.color,
     });
     setMovieError('');
@@ -531,7 +543,7 @@ const MovieManagement = () => {
                     <div className="movie-info">
                       <div className="movie-title">{m.title}</div>
                       <div className="movie-meta">
-                        {m.year} · {m.duration} min{m.director ? ` · ${m.director}` : ''}
+                        {m.year} · {m.duration} min · RM {(m.price ?? 10).toFixed(2)}{m.director ? ` · ${m.director}` : ''}
                       </div>
                       <RatingBadge rating={m.rating} />
                       {m.synopsis && (
@@ -742,10 +754,10 @@ const MovieManagement = () => {
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {[
-                  { label: 'Director', value: detailMovie.director || '—' },
-                  { label: 'Cast',     value: detailMovie.cast     || '—' },
-                  { label: 'Added',    value: detailMovie.createdAt?.split('T')[0] || '—' },
-                  { label: 'ID',       value: detailMovie.id.slice(0, 12) + '…' },
+                  { label: 'Director',     value: detailMovie.director || '—' },
+                  { label: 'Cast',         value: detailMovie.cast     || '—' },
+                  { label: 'Ticket Price', value: `RM ${(detailMovie.price ?? 10).toFixed(2)}` },
+                  { label: 'Added',        value: detailMovie.createdAt?.split('T')[0] || '—' },
                 ].map(({ label, value }) => (
                   <div key={label} style={{
                     padding: '8px 12px', background: 'var(--navy)',

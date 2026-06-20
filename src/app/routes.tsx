@@ -27,6 +27,7 @@ import { Browse, Schedule, MyTickets} from './pages/Moviegoer';
 import ChatbotPage from './pages/Moviegoer/ChatbotPage';
 
 // Shared
+import MovieReviews from './pages/MovieReviews';
 import Settings  from './pages/Settings';
 import NotFound  from './pages/NotFound';
 
@@ -40,6 +41,7 @@ const ROUTE_MAP: Record<string, ReactElement> = {
   movies:       <MovieManagement />,
   snacks:       <SnacksManagement />,
   analytics:    <Analytics />,
+  reviews:      <MovieReviews />,
 
   // Manager
   'cm-dashboard':  <ManagerDashboard />,
@@ -47,6 +49,7 @@ const ROUTE_MAP: Record<string, ReactElement> = {
   staff:           <StaffManagement />,
   tickets:         <TicketManagement />,
   'cm-analytics':  <ManagerAnalytics />,
+  'cm-reviews':    <MovieReviews />,
 
   // Staff
   'staff-main': <StaffIndex />,

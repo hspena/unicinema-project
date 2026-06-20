@@ -1,7 +1,7 @@
 import { NavSection, UserRole } from '../types';
 import {
   LayoutGrid, Users, Building2, Film, Popcorn, BarChart3,
-  User, Ticket, ClipboardList, Calendar, Bot,
+  User, Ticket, ClipboardList, Calendar, Bot, Star,
 } from 'lucide-react';
 import { ROLE_ICON_COMPONENTS } from './icons';
 
@@ -38,7 +38,10 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
     },
     {
       section: 'Insights',
-      items: [{ icon: BarChart3, label: 'Analytics', view: 'analytics' }],
+      items: [
+        { icon: BarChart3, label: 'Analytics',     view: 'analytics' },
+        { icon: Star,      label: 'Movie Reviews', view: 'reviews'   },
+      ],
     },
   ],
   'Cinema Room': [
@@ -56,7 +59,10 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
     },
     {
       section: 'Insights',
-      items: [{ icon: BarChart3, label: 'Analytics', view: 'cm-analytics' }],
+      items: [
+        { icon: BarChart3, label: 'Analytics',     view: 'cm-analytics' },
+        { icon: Star,      label: 'Movie Reviews', view: 'cm-reviews'   },
+      ],
     },
   ],
   Staff: [

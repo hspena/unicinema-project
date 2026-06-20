@@ -5,6 +5,7 @@ export { default as Modal }     from './Modal';
 export { default as Toggle }    from './Toggle';
 export { default as StatCard }  from './StatCard';
 export { default as BarChart }  from './BarChart';
+export { default as LineChart } from './LineChart';
 export { default as SeatMap }   from './SeatMap';
 export { default as IconPicker } from './IconPicker';
 export { default as QrCodeView } from './QrCodeView';

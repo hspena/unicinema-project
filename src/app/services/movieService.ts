@@ -35,6 +35,7 @@ export interface Movie {
   genreId:   string;   // references Genre.id
   duration:  number;
   year:      number;
+  price:     number;   // ticket price in RM (per seat)
   rating:    ContentRating;
   synopsis:  string;
   director:  string;

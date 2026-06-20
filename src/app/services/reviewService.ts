@@ -62,6 +62,21 @@ export const subscribeToMovieReviews = (
   return () => off(dbRef);
 };
 
+/** Get all reviews across every movie (newest first) */
+export const subscribeToAllReviews = (
+  callback: (reviews: Review[]) => void
+): (() => void) => {
+  const dbRef = reviewsRef();
+  onValue(dbRef, (snap) => {
+    if (!snap.exists()) { callback([]); return; }
+    const all = Object.values(snap.val()) as Review[];
+    callback(
+      all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    );
+  });
+  return () => off(dbRef);
+};
+
 /** Check if a user has already reviewed a movie via a specific booking */
 export const getUserReviewForMovie = async (
   userId: string, movieId: string
