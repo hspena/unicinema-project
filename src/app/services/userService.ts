@@ -4,6 +4,11 @@ import {
   updatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  type User as FirebaseUser,
 } from 'firebase/auth';
 import { initializeApp, deleteApp }            from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -70,6 +75,98 @@ export const loginUser = async (
 };
 
 export const logoutUser = () => signOut(auth);
+
+// ─── Google sign-in ───────────────────────────────────────────────────────────
+
+const googleProvider = new GoogleAuthProvider();
+
+/**
+ * Derive a unique, valid username (`/^[a-z0-9_]+$/`, 3–20 chars) from a base
+ * string (e.g. an email prefix), appending a numeric suffix on collisions.
+ */
+const generateUniqueUsername = async (base: string): Promise<string> => {
+  let root = (base || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (root.length < 3) root = `user${root}`;
+  root = root.slice(0, 20);
+
+  if (await isUsernameAvailable(root)) return root;
+
+  for (let i = 1; i < 1000; i++) {
+    const suffix    = String(i);
+    const candidate = `${root.slice(0, 20 - suffix.length)}${suffix}`;
+    if (await isUsernameAvailable(candidate)) return candidate;
+  }
+  // Extremely unlikely fallback
+  return `${root.slice(0, 13)}${Date.now()}`.slice(0, 20);
+};
+
+// Popup failures that warrant falling back to a full-page redirect.
+const REDIRECT_FALLBACK_CODES = [
+  'auth/popup-blocked',
+  'auth/operation-not-supported-in-this-environment',
+  'auth/network-request-failed',
+  'auth/internal-error',
+];
+
+/**
+ * Resolve a signed-in Google account to an app User, creating a Moviegoer
+ * profile (with a derived unique username) the first time we see them.
+ */
+const provisionGoogleUser = async (fbUser: FirebaseUser): Promise<User> => {
+  const snap = await get(userRef(fbUser.uid));
+  if (snap.exists()) {
+    return { id: fbUser.uid, ...snap.val() } as User;
+  }
+
+  const email       = fbUser.email ?? '';
+  const displayName = fbUser.displayName || email.split('@')[0] || 'Moviegoer';
+  const username    = await generateUniqueUsername(email.split('@')[0] || displayName);
+
+  const newUser: Omit<User, 'id'> = {
+    name:        displayName,
+    displayName,
+    username,
+    email,
+    role:        'Moviegoer',
+    status:      'active',
+    joined:      new Date().toISOString().split('T')[0],
+  };
+
+  await set(userRef(fbUser.uid), newUser);
+  await claimUsername(username, fbUser.uid);
+
+  return { id: fbUser.uid, ...newUser };
+};
+
+/**
+ * Sign in (or sign up) with Google via popup. If the popup can't be used
+ * (blocked, unsupported, or a network error), fall back to a full-page
+ * redirect — in that case this navigates away and never resolves; the result
+ * is picked up on reload by {@link completeGoogleRedirect}.
+ */
+export const signInWithGoogle = async (): Promise<User> => {
+  try {
+    const cred = await signInWithPopup(auth, googleProvider);
+    return await provisionGoogleUser(cred.user);
+  } catch (err: any) {
+    if (REDIRECT_FALLBACK_CODES.includes(err?.code)) {
+      await signInWithRedirect(auth, googleProvider);
+      // Page is navigating away; keep the caller pending until it unloads.
+      return new Promise<User>(() => {});
+    }
+    throw err;
+  }
+};
+
+/**
+ * On app load, finish a Google sign-in that used the redirect fallback.
+ * Returns the resolved User, or null if there was no pending redirect.
+ */
+export const completeGoogleRedirect = async (): Promise<User | null> => {
+  const result = await getRedirectResult(auth);
+  if (!result?.user) return null;
+  return provisionGoogleUser(result.user);
+};
 
 export const getCurrentUserRole = async (uid: string): Promise<UserRole | null> => {
   const snap = await get(userRef(uid));
