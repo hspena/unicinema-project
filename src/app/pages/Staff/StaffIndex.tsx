@@ -7,9 +7,10 @@ import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Schedule, subscribeToRoomSchedules, autoStatus, todayString, formatDate } from '../../services/scheduleService';
 import { Booking, checkInBooking, findBookingByCode, getBookedSeats } from '../../services/bookingService';
 import WalkupBooking from '../../components/WalkupBooking';
+import GuestReviewModal, { ReviewableBooking } from '../../components/GuestReviewModal';
 import {
   IconGlyph, Calendar, X, Building2, Ticket, Hourglass, Check,
-  CheckCircle2, CircleDot, XCircle, Maximize, ScanLine,
+  CheckCircle2, CircleDot, XCircle, Maximize, ScanLine, Star,
 } from '../../utils/icons';
 
 
@@ -258,6 +259,10 @@ const StaffIndex = () => {
   const [scanLoading, setScanLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
+  // Guest review collection
+  const [reviewBooking, setReviewBooking] = useState<ReviewableBooking | null>(null);
+  const [showReview,    setShowReview]    = useState(false);
+
   // Fullscreen
   const [showFullscreen, setShowFullscreen] = useState(false);
 
@@ -323,6 +328,30 @@ const StaffIndex = () => {
           setBookedSeats(seats);
         }
       }
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
+  const handleCollectReview = async () => {
+    const code = ticketCode.trim();
+    if (!code) { setScanResult({ ok: false, message: 'Enter the guest\'s ticket code first.' }); return; }
+    setScanLoading(true);
+    setScanResult(null);
+    try {
+      const booking = await findBookingByCode(code);
+      if (!booking) {
+        setScanResult({ ok: false, message: `No ticket found for "${code.toUpperCase()}".` });
+        return;
+      }
+      setReviewBooking({
+        id:         booking.id,
+        movieId:    booking.movieId,
+        movieTitle: booking.movieTitle,
+        userName:   booking.userName,
+        userId:     booking.userId,
+      });
+      setShowReview(true);
     } finally {
       setScanLoading(false);
     }
@@ -488,6 +517,21 @@ const StaffIndex = () => {
               <ScanLine size={14} /> Scan Ticket QR
             </button>
 
+            <button
+              className="btn btn-outline"
+              style={{ width: '100%', justifyContent: 'center', marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              onClick={handleCollectReview}
+              disabled={scanLoading}
+            >
+              <Star size={14} /> Collect Guest Review
+            </button>
+            <div style={{
+              fontSize: '0.7rem', color: 'var(--text-muted)',
+              textAlign: 'center', marginBottom: 12, padding: '0 8px',
+            }}>
+              Enter a guest's ticket code above to record their movie review.
+            </div>
+
             {scanResult && (
               <div style={{
                 padding: '10px 14px', borderRadius: 'var(--radius)', marginBottom: 10,
@@ -533,6 +577,13 @@ const StaffIndex = () => {
             }}
           />
         )}
+
+        <GuestReviewModal
+          open={showReview}
+          onClose={() => setShowReview(false)}
+          booking={reviewBooking}
+          movie={reviewBooking ? movies.find(m => m.id === reviewBooking.movieId) ?? null : null}
+        />
       </div>
 
       {/* Seat map */}

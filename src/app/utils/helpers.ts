@@ -52,9 +52,10 @@ export const NAV_CONFIG: Record<UserRole, NavSection[]> = {
     {
       section: 'Manage',
       items: [
-        { icon: Film,   label: 'Cinema',  view: 'cinema'  },
-        { icon: User,   label: 'Staff',   view: 'staff'   },
-        { icon: Ticket, label: 'Tickets', view: 'tickets' },
+        { icon: Film,          label: 'Cinema',      view: 'cinema'     },
+        { icon: User,          label: 'Staff',       view: 'staff'      },
+        { icon: Ticket,        label: 'Tickets',     view: 'tickets'    },
+        { icon: ClipboardList, label: 'Walk-up Desk', view: 'staff-main' },
       ],
     },
     {

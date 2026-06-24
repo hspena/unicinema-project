@@ -77,6 +77,18 @@ export const subscribeToAllReviews = (
   return () => off(dbRef);
 };
 
+/** Check if a specific booking already has a review (used for guest/walk-in reviews,
+ *  which all share userId 'GUEST' and so must be keyed by booking instead). */
+export const getReviewForBooking = async (
+  bookingId: string
+): Promise<Review | null> => {
+  if (!bookingId) return null;
+  const snap = await get(reviewsRef());
+  if (!snap.exists()) return null;
+  const all = Object.values(snap.val()) as Review[];
+  return all.find(r => r.bookingId === bookingId) ?? null;
+};
+
 /** Check if a user has already reviewed a movie via a specific booking */
 export const getUserReviewForMovie = async (
   userId: string, movieId: string

@@ -9,9 +9,10 @@ import { createNotification } from '../services/notificationService';
 import { getNotificationPrefs } from '../utils/preferences';
 import { subscribeToUsers } from '../services/userService';
 import { User } from '../types';
+import GuestReviewModal, { ReviewableBooking } from './GuestReviewModal';
 import {
   Check, ArrowLeft, ArrowRight, Hourglass, AlertTriangle, User as UserIcon,
-  Search, X, Film, CircleDot, Clock, PartyPopper, IconGlyph,
+  Search, X, Film, CircleDot, Clock, PartyPopper, IconGlyph, Star,
 } from '../utils/icons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,6 +61,9 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
   const [isSaving,     setIsSaving]     = useState(false);
   const [error,        setError]        = useState('');
   const [doneTicket,   setDoneTicket]   = useState<{ code: string; name: string } | null>(null);
+  const [doneBooking,  setDoneBooking]  = useState<ReviewableBooking | null>(null);
+  const [doneMovie,    setDoneMovie]    = useState<Movie | null>(null);
+  const [showReview,   setShowReview]   = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -98,7 +102,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
     setStep(1); setMode('guest'); setGuestName(''); setUserSearch('');
     setSelectedUser(null); setSelectedSchedule(null);
     setChosenSeats([]); setBookedSeats([]); setError('');
-    setDoneTicket(null);
+    setDoneTicket(null); setDoneBooking(null); setDoneMovie(null); setShowReview(false);
     onClose();
   };
 
@@ -162,6 +166,14 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
       }
 
       setDoneTicket({ code: booking.ticketCode, name: userName });
+      setDoneBooking({
+        id:         booking.id,
+        movieId:    selectedSchedule.movieId,
+        movieTitle: movie?.title ?? '—',
+        userName,
+        userId,
+      });
+      setDoneMovie(movie ?? null);
       setStep(4);
       onBooked?.(booking.ticketCode, userName);
     } catch (e: any) {
@@ -500,8 +512,25 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
           <div style={{ marginTop: 20, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             {chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''} · {selectedSchedule?.startTime}
           </div>
+
+          {/* Collect a review on behalf of the walk-in guest */}
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
+            <Button variant="outline" icon={<Star size={14} />} onClick={() => setShowReview(true)}>
+              Collect a Review
+            </Button>
+            <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              Optionally record what {doneTicket.name} thought of the movie.
+            </div>
+          </div>
         </div>
       )}
+
+      <GuestReviewModal
+        open={showReview}
+        onClose={() => setShowReview(false)}
+        booking={doneBooking}
+        movie={doneMovie}
+      />
     </Modal>
   );
 };
