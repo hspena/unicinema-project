@@ -3,8 +3,8 @@ import { Card, StatCard, Modal, Button, Badge, BarChart, LineChart } from '../..
 import type { LineSeries } from '../../components/ui/LineChart';
 import { useAuth } from '../../context/AuthContext';
 import {
-  Film, Star, Ticket, Search, Tags, Save, Hourglass, BarChart3,
-  ArrowUp, IconGlyph,
+  Film, Star, Search, Tags, Save, Hourglass, BarChart3,
+  ArrowUp, IconGlyph, Users,
 } from '../../utils/icons';
 import {
   Movie, Genre, subscribeToMovies, subscribeToGenres, updateMovie,
@@ -192,7 +192,7 @@ const MovieReviews = () => {
   const detail = detailId ? stats.find(s => s.movieId === detailId) ?? null : null;
 
   // ── Summary ───────────────────────────────────────────────────────────────
-  const totalWatches  = stats.reduce((sum, s) => sum + s.watchesTotal, 0);
+  const totalReviewers = new Set(reviews.map(r => r.userId)).size;
   const totalReviews  = reviews.length;
   const overallRating = totalReviews
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
@@ -211,7 +211,7 @@ const MovieReviews = () => {
       {/* Summary */}
       <div className="stats-grid">
         <StatCard icon={<Film size={22} />}       value={movies.length}             label="Movies"        delay={1} />
-        <StatCard icon={<Ticket size={22} />}     value={totalWatches.toLocaleString()} label="Total Watches" delay={2} />
+        <StatCard icon={<Users size={22} />}      value={totalReviewers.toLocaleString()} label="Total Moviegoers" delay={2} />
         <StatCard icon={<Star size={22} />}       value={totalReviews ? overallRating.toFixed(2) : '—'} label="Avg Rating" delay={3} />
         <StatCard icon={<BarChart3 size={22} />}  value={totalReviews}              label="Total Reviews" delay={4} />
       </div>

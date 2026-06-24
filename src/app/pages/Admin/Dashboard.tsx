@@ -12,7 +12,7 @@ import { Schedule }                 from '../../services/scheduleService';
 import { Booking }                  from '../../services/bookingService';
 import { onValue, ref, off }        from 'firebase/database';
 import { db }                       from '../../config/firebase';
-import { Star, Building2, Ticket, Users, DollarSign } from '../../utils/icons';
+import { Star, Building2, Ticket, Users, DollarSign, IconGlyph } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -252,8 +252,8 @@ const AdminDashboard = () => {
             ) : (
               movieBookingCount.map(({ movie, count }) => (
                 <div key={movie.id} className="bar-row">
-                  <div className="bar-label">
-                    {movie.emoji} {movie.title}
+                  <div className="bar-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <IconGlyph iconKey={movie.emoji} size={14} /> {movie.title}
                   </div>
                   <div className="bar-track">
                     <div className="bar-fill" style={{ width: `${(count / maxCount) * 100}%` }} />
@@ -323,7 +323,7 @@ const AdminDashboard = () => {
                   <div key={s.id} className="schedule-slot">
                     <div className="schedule-time">{s.startTime}</div>
                     <div className="schedule-movie" style={{ flex: 1 }}>
-                      <div className="schedule-movie-name">{movie?.emoji} {movie?.title ?? '—'}</div>
+                      <div className="schedule-movie-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconGlyph iconKey={movie?.emoji} size={15} /> {movie?.title ?? '—'}</div>
                       <div className="schedule-movie-meta">{room?.name} · {movie?.duration} min</div>
                     </div>
                     <Badge variant={vMap[status]}>{status}</Badge>

@@ -7,7 +7,7 @@ import { subscribeToRoomSchedules, autoStatus, todayString, formatDate } from '.
 import { subscribeToRoomBookings, Booking } from '../../services/bookingService';
 import { subscribeToMovieReviews, getMovieAverageRating, Review } from '../../services/reviewService';
 import { Schedule } from '../../services/scheduleService';
-import { Star, Building2, Ticket, DollarSign, CheckCircle2, Calendar } from '../../utils/icons';
+import { Star, Building2, Ticket, DollarSign, CheckCircle2, Calendar, IconGlyph } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -303,8 +303,8 @@ const CMDashboard = () => {
                   <div key={s.id} className="schedule-slot">
                     <div className="schedule-time">{s.startTime}</div>
                     <div className="schedule-movie" style={{ flex: 1 }}>
-                      <div className="schedule-movie-name">
-                        {movie?.emoji} {movie?.title ?? '—'}
+                      <div className="schedule-movie-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <IconGlyph iconKey={movie?.emoji} size={15} /> {movie?.title ?? '—'}
                         {s.freeTickets && (
                           <span style={{ marginLeft: 8, fontSize: '0.62rem', padding: '1px 5px', background: 'var(--gold)', color: 'var(--navy)', borderRadius: 99, fontWeight: 700 }}>
                             FREE
@@ -334,7 +334,9 @@ const CMDashboard = () => {
             ) : (
               movieStats.map(({ movie, count }) => (
                 <div key={movie.id} className="bar-row">
-                  <div className="bar-label">{movie.emoji} {movie.title}</div>
+                  <div className="bar-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <IconGlyph iconKey={movie.emoji} size={14} /> {movie.title}
+                  </div>
                   <div className="bar-track">
                     <div className="bar-fill" style={{ width: `${(count / maxCount) * 100}%` }} />
                   </div>
@@ -361,7 +363,7 @@ const CMDashboard = () => {
                     padding: '9px 12px', background: 'var(--navy)',
                     border: '1px solid var(--border)', borderRadius: 'var(--radius)',
                   }}>
-                    <span style={{ fontSize: '1.3rem' }}>{movie?.emoji}</span>
+                    <span style={{ display: 'inline-flex' }}><IconGlyph iconKey={movie?.emoji} size={22} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 500, fontSize: '0.83rem' }}>{movie?.title ?? '—'}</div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>

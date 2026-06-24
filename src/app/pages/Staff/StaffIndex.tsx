@@ -417,8 +417,8 @@ const StaffIndex = () => {
                   >
                     <div className="schedule-time">{s.startTime}</div>
                     <div className="schedule-movie" style={{ flex: 1 }}>
-                      <div className="schedule-movie-name">
-                        {movie?.emoji} {movie?.title ?? '—'}
+                      <div className="schedule-movie-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <IconGlyph iconKey={movie?.emoji} size={15} /> {movie?.title ?? '—'}
                         {s.freeTickets && (
                           <span style={{
                             marginLeft: 7, fontSize: '0.65rem', padding: '1px 5px',
