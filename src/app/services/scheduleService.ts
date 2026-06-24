@@ -160,6 +160,8 @@ export interface AutoScheduleConfig {
   dayStart:     string;     // HH:MM — earliest a show may start
   dayEnd:       string;     // HH:MM — latest a show may end
   gapMinutes:   number;     // gap between consecutive shows
+  recessStart?: string;     // HH:MM — start of a daily rest/recess window (optional)
+  recessEnd?:   string;     // HH:MM — end of the rest/recess window (optional)
   repeatPerDay: number;     // how many times each movie plays per day
   freeTickets:  boolean;    // mark every generated show as free
   createdBy:    string;
@@ -189,6 +191,10 @@ const buildPlaylist = (movieIds: string[], repeatPerDay: number): string[] => {
  * `dayStart`; any show that would end after `dayEnd` is dropped. Movies
  * alternate before repeating. Returns one batch per selected date.
  *
+ * If a rest/recess window (`recessStart`–`recessEnd`) is configured, no show
+ * is allowed to run during it: a show that would overlap the window is pushed
+ * to start once the recess ends.
+ *
  * This is a pure function — it performs no clash detection or writes.
  */
 export const generateAutoSchedule = (
@@ -199,6 +205,10 @@ export const generateAutoSchedule = (
   const playlist   = buildPlaylist(config.movieIds, config.repeatPerDay);
   const dayStart   = toMinutes(config.dayStart);
   const dayEnd     = toMinutes(config.dayEnd);
+  const hasRecess  = !!config.recessStart && !!config.recessEnd
+    && toMinutes(config.recessStart) < toMinutes(config.recessEnd);
+  const recessStart = hasRecess ? toMinutes(config.recessStart!) : 0;
+  const recessEnd   = hasRecess ? toMinutes(config.recessEnd!)   : 0;
   const out: SchedulePayload[] = [];
 
   for (const date of config.dates) {
@@ -206,7 +216,13 @@ export const generateAutoSchedule = (
     for (const movieId of playlist) {
       const duration = durationOf(movieId);
       if (duration <= 0) continue;
-      const end = cursor + duration;
+      let end = cursor + duration;
+
+      // Skip past the recess window if this show would overlap it.
+      if (hasRecess && cursor < recessEnd && end > recessStart) {
+        cursor = recessEnd;
+        end    = cursor + duration;
+      }
       if (end > dayEnd) break;               // playlist exhausted for the day
 
       out.push({

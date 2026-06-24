@@ -8,7 +8,7 @@ import {
 } from '../services/scheduleService';
 import {
   IconGlyph, Sparkles, Calendar, Clock, Ticket, Popcorn,
-  Plus, X, AlertTriangle, CheckCircle2, Film, Hourglass,
+  Plus, X, AlertTriangle, CheckCircle2, Film, Hourglass, Coffee,
 } from '../utils/icons';
 
 // ─── Reusable toggle (matches the look used elsewhere in Cinema Management) ─────
@@ -60,6 +60,9 @@ interface FormState {
   dayEnd:       string;
   gapMinutes:   number;
   repeatPerDay: number;
+  recess:       boolean;
+  recessStart:  string;
+  recessEnd:    string;
   freeTickets:  boolean;
   snacks:       boolean;
 }
@@ -68,6 +71,7 @@ const initialForm = (): FormState => ({
   movieIds: [], dates: [todayString()],
   dayStart: '10:00', dayEnd: '23:00',
   gapMinutes: 15, repeatPerDay: 2,
+  recess: false, recessStart: '13:00', recessEnd: '14:00',
   freeTickets: false, snacks: true,
 });
 
@@ -101,6 +105,8 @@ const AutoScheduleModal = ({
       movieIds: form.movieIds, dates: [...form.dates].sort(),
       dayStart: form.dayStart, dayEnd: form.dayEnd,
       gapMinutes: form.gapMinutes, repeatPerDay: form.repeatPerDay,
+      recessStart: form.recess ? form.recessStart : undefined,
+      recessEnd:   form.recess ? form.recessEnd   : undefined,
       freeTickets: form.freeTickets,
     };
     return generateAutoSchedule(config, movies);
@@ -134,6 +140,12 @@ const AutoScheduleModal = ({
     if (form.movieIds.length === 0) { setError('Select at least one movie.'); return; }
     if (form.dates.length === 0)    { setError('Add at least one date.'); return; }
     if (form.dayStart >= form.dayEnd) { setError('Day start must be before day end.'); return; }
+    if (form.recess) {
+      if (form.recessStart >= form.recessEnd) { setError('Rest time start must be before its end.'); return; }
+      if (form.recessStart < form.dayStart || form.recessEnd > form.dayEnd) {
+        setError('Rest time must fall within the day window.'); return;
+      }
+    }
     if (preview.length === 0) {
       setError('No shows fit in the given time window. Widen the window or shorten the gap.');
       return;
@@ -262,6 +274,29 @@ const AutoScheduleModal = ({
         </div>
       </div>
 
+      {/* ── Rest / recess window ── */}
+      <div style={{ marginBottom: 4 }}>
+        <ToggleRow
+          icon={<Coffee size={14} />} title="Rest / Recess Time"
+          subtitle="Reserve a daily break window — no shows are scheduled during it"
+          value={form.recess} onChange={v => setForm(p => ({ ...p, recess: v }))}
+        />
+        {form.recess && (
+          <div className="input-row" style={{ marginTop: 10 }}>
+            <div className="input-group">
+              <label className="input-label">Rest starts at *</label>
+              <input className="input-field" type="time" value={form.recessStart}
+                onChange={e => setForm(p => ({ ...p, recessStart: e.target.value }))} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Rest ends at *</label>
+              <input className="input-field" type="time" value={form.recessEnd}
+                onChange={e => setForm(p => ({ ...p, recessEnd: e.target.value }))} />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── Dates ── */}
       <div className="input-group">
         <label className="input-label">Dates *</label>
@@ -322,20 +357,37 @@ const AutoScheduleModal = ({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {slots.map((s, i) => {
                     const movie = movies.find(m => m.id === s.movieId);
+                    const showRecess = form.recess
+                      && s.endTime <= form.recessStart
+                      && (slots[i + 1] ? slots[i + 1].startTime >= form.recessEnd : true);
                     return (
-                      <div key={i} style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        fontSize: '0.76rem', padding: '4px 0',
-                      }}>
-                        <span style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--gold)', minWidth: 96 }}>
-                          {s.startTime}–{s.endTime}
-                        </span>
-                        <IconGlyph iconKey={movie?.emoji} size={13} />
-                        <span style={{ color: 'var(--text-primary)' }}>{movie?.title ?? '—'}</span>
-                        {s.freeTickets && (
-                          <span style={{ fontSize: '0.62rem', padding: '0 5px', background: 'var(--gold)', color: 'var(--navy)', borderRadius: 99, fontWeight: 700 }}>FREE</span>
+                      <React.Fragment key={i}>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          fontSize: '0.76rem', padding: '4px 0',
+                        }}>
+                          <span style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--gold)', minWidth: 96 }}>
+                            {s.startTime}–{s.endTime}
+                          </span>
+                          <IconGlyph iconKey={movie?.emoji} size={13} />
+                          <span style={{ color: 'var(--text-primary)' }}>{movie?.title ?? '—'}</span>
+                          {s.freeTickets && (
+                            <span style={{ fontSize: '0.62rem', padding: '0 5px', background: 'var(--gold)', color: 'var(--navy)', borderRadius: 99, fontWeight: 700 }}>FREE</span>
+                          )}
+                        </div>
+                        {showRecess && (
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            fontSize: '0.72rem', padding: '4px 0', color: 'var(--text-muted)',
+                          }}>
+                            <span style={{ fontFamily: 'var(--font-mono, monospace)', minWidth: 96 }}>
+                              {form.recessStart}–{form.recessEnd}
+                            </span>
+                            <Coffee size={12} />
+                            <span style={{ fontStyle: 'italic' }}>Rest / recess — no shows</span>
+                          </div>
                         )}
-                      </div>
+                      </React.Fragment>
                     );
                   })}
                 </div>
