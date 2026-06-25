@@ -503,7 +503,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
             <SeatMap
               template={template}
               bookedSeats={bookedSeats}
-              onConfirm={seats => setChosenSeats(seats)}
+              onChange={seats => { setChosenSeats(seats); if (seats.length) setError(''); }}
             />
           ) : (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>

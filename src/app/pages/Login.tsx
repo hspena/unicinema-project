@@ -92,8 +92,12 @@ const Login = () => {
   const [usernameStatus,   setUsernameStatus]   = useState<'idle' | 'available' | 'taken' | 'invalid'>('idle');
 
   // ── Login ──────────────────────────────────────────────────────────────────
+  const [loginHint, setLoginHint] = useState('');
   const handleLogin = async () => {
-    if (!email || !password) return;
+    if (!email && !password) { setLoginHint('Please enter your email and password.'); return; }
+    if (!email)              { setLoginHint('Please enter your email address.'); return; }
+    if (!password)           { setLoginHint('Please enter your password.'); return; }
+    setLoginHint('');
     await login(email, password);
   };
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -162,7 +166,7 @@ const Login = () => {
   };
 
   const switchMode = (m: AuthMode) => {
-    setMode(m); clearError(); setRegError(''); setRegSuccess(false);
+    setMode(m); clearError(); setRegError(''); setRegSuccess(false); setLoginHint('');
   };
 
   const usernameIndicator = () => {
@@ -227,16 +231,23 @@ const Login = () => {
                 </div>
               )}
 
+              {loginHint && !error && (
+                <div className="auth-error">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {loginHint}</span>
+                  <span style={{ cursor: 'pointer', fontWeight: 700 }} onClick={() => setLoginHint('')}><X size={14} /></span>
+                </div>
+              )}
+
               <div className="input-group">
                 <label className="input-label">Email Address</label>
                 <input className="input-field" type="email" placeholder="you@email.com"
-                  value={email} onChange={e => setEmail(e.target.value)}
+                  value={email} onChange={e => { setEmail(e.target.value); if (loginHint) setLoginHint(''); }}
                   onKeyDown={handleKeyDown} disabled={isLoading} />
               </div>
               <div className="input-group">
                 <label className="input-label">Password</label>
                 <input className="input-field" type="password" placeholder="••••••••"
-                  value={password} onChange={e => setPassword(e.target.value)}
+                  value={password} onChange={e => { setPassword(e.target.value); if (loginHint) setLoginHint(''); }}
                   onKeyDown={handleKeyDown} disabled={isLoading} />
               </div>
 

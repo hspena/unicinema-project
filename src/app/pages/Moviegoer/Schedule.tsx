@@ -17,7 +17,7 @@ import { createNotification } from '../../services/notificationService';
 import { getNotificationPrefs } from '../../utils/preferences';
 import {
   IconGlyph, CircleDot, Hourglass, CheckCircle2, XCircle, Folder, Calendar,
-  Ticket, PartyPopper, CreditCard,
+  Ticket, PartyPopper, CreditCard, AlertTriangle,
 } from '../../utils/icons';
 
 // Price charged per seat for paid (non-free) shows, in RM.
@@ -114,6 +114,7 @@ const SchedulePage = () => {
   const [bookedSeats,      setBookedSeats]      = useState<string[]>([]);
   const [chosenSeats,      setChosenSeats]      = useState<string[]>([]);
   const [chosenSnacks,     setChosenSnacks]     = useState<BookingSnack[]>([]);
+  const [seatError,        setSeatError]        = useState('');
   const [seatsLoading,     setSeatsLoading]     = useState(false);
   const [showSeatModal,    setShowSeatModal]    = useState(false);
   const [showSnackModal,   setShowSnackModal]   = useState(false);
@@ -158,6 +159,7 @@ const SchedulePage = () => {
     setBookingSchedule(s);
     setChosenSeats([]);
     setChosenSnacks([]);
+    setSeatError('');
     setBookingDone(null);
     setSeatsLoading(true);
     setShowSeatModal(true);
@@ -390,15 +392,18 @@ const SchedulePage = () => {
           ? `Choose Seats — ${bookingMovie?.title ?? ''} @ ${bookingSchedule.startTime}`
           : 'Choose Seats'}
         open={showSeatModal}
-        onClose={() => { setShowSeatModal(false); setChosenSeats([]); setChosenSnacks([]); }}
+        onClose={() => { setShowSeatModal(false); setChosenSeats([]); setChosenSnacks([]); setSeatError(''); }}
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowSeatModal(false); setChosenSeats([]); setChosenSnacks([]); }}>
+            <Button variant="outline" onClick={() => { setShowSeatModal(false); setChosenSeats([]); setChosenSnacks([]); setSeatError(''); }}>
               Cancel
             </Button>
             <Button
-              disabled={chosenSeats.length === 0}
-              onClick={() => allowSnacks ? setShowSnackModal(true) : setShowConfirmModal(true)}
+              onClick={() => {
+                if (chosenSeats.length === 0) { setSeatError('Please select at least one seat to continue.'); return; }
+                setSeatError('');
+                allowSnacks ? setShowSnackModal(true) : setShowConfirmModal(true);
+              }}
             >
               Continue ({chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''}) →
             </Button>
@@ -413,6 +418,12 @@ const SchedulePage = () => {
               <span>{bookingRoom?.name ?? '—'}</span>
             </div>
 
+            {seatError && (
+              <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} /> {seatError}
+              </div>
+            )}
+
             {seatsLoading ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)' }}>
                 Loading seat availability…
@@ -421,7 +432,7 @@ const SchedulePage = () => {
               <SeatMap
                 template={bookingTemplate}
                 bookedSeats={bookedSeats}
-                onConfirm={seats => setChosenSeats(seats)}
+                onChange={seats => { setChosenSeats(seats); if (seats.length) setSeatError(''); }}
               />
             ) : (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>

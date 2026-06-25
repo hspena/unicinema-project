@@ -9,18 +9,29 @@ interface SeatMapProps {
   template:     RoomTemplate;
   bookedSeats?: string[];
   onConfirm?:   (seats: string[]) => void;
+  // Reports the current selection live on every change. Prefer this over
+  // onConfirm so the surrounding flow's "Continue"/"Next" button stays in sync
+  // as seats are picked — no extra "confirm" click is required.
+  onChange?:    (seats: string[]) => void;
 }
 
 const makeSeatId = (secKey: SectionKey, idx: number) => `${secKey}-${idx}`;
 
-const SeatMap = ({ template, bookedSeats = [], onConfirm }: SeatMapProps) => {
+const SeatMap = ({ template, bookedSeats = [], onConfirm, onChange }: SeatMapProps) => {
   const [selected, setSelected] = useState<string[]>([]);
   const { gridRows, gridCols, sections } = template;
+  const interactive = !!(onChange || onConfirm);
+
+  // Apply a new selection and report it upward immediately.
+  const updateSelection = (next: string[]) => {
+    setSelected(next);
+    onChange?.(next);
+  };
 
   const toggle = (id: string) => {
     if (bookedSeats.includes(id)) return;
-    setSelected(prev =>
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    updateSelection(
+      selected.includes(id) ? selected.filter(s => s !== id) : [...selected, id]
     );
   };
 
@@ -92,6 +103,16 @@ const SeatMap = ({ template, bookedSeats = [], onConfirm }: SeatMapProps) => {
         <span className="sm-legend-item"><span className="sm-legend-dot sm-seat-booked" /> Booked</span>
       </div>
 
+      {/* Prompt when nothing is picked yet, so the next step is obvious */}
+      {interactive && selected.length === 0 && (
+        <div style={{
+          textAlign: 'center', marginTop: 14,
+          fontSize: '0.78rem', color: 'var(--text-muted)',
+        }}>
+          Tap an available seat above to select it.
+        </div>
+      )}
+
       {/* Selection panel */}
       {selected.length > 0 && (
         <div className="sm-selection">
@@ -107,13 +128,13 @@ const SeatMap = ({ template, bookedSeats = [], onConfirm }: SeatMapProps) => {
               return (
                 <span key={id} className="sm-chip">
                   {sec?.name?.[0] ?? '?'}{seatIdx}
-                  <span className="sm-chip-x" onClick={() => setSelected(p => p.filter(s => s !== id))}><X size={11} /></span>
+                  <span className="sm-chip-x" onClick={() => updateSelection(selected.filter(s => s !== id))}><X size={11} /></span>
                 </span>
               );
             })}
           </div>
           <div className="sm-selection-actions">
-            <button className="btn btn-outline btn-sm" onClick={() => setSelected([])}>Clear All</button>
+            <button className="btn btn-outline btn-sm" onClick={() => updateSelection([])}>Clear All</button>
             {onConfirm && (
               <button className="btn btn-primary btn-sm" onClick={() => onConfirm(selected)}>
                 <Ticket size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Confirm {selected.length} Seat{selected.length > 1 ? 's' : ''}

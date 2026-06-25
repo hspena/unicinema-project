@@ -108,6 +108,7 @@ const Browse = () => {
   const [bookingSchedule,  setBookingSchedule]  = useState<ScheduleItem | null>(null);
   const [bookedSeats,      setBookedSeats]       = useState<string[]>([]);
   const [chosenSeats,      setChosenSeats]       = useState<string[]>([]);
+  const [seatError,        setSeatError]         = useState('');
   const [seatsLoading,     setSeatsLoading]      = useState(false);
   const [showSeatModal,    setShowSeatModal]      = useState(false);
   const [showConfirmModal, setShowConfirmModal]   = useState(false);
@@ -181,6 +182,7 @@ const Browse = () => {
   const handleOpenBooking = async (s: ScheduleItem) => {
     setBookingSchedule(s);
     setChosenSeats([]);
+    setSeatError('');
     setBookingDone(null);
     setSeatsLoading(true);
     setShowSeatModal(true);
@@ -519,15 +521,18 @@ const Browse = () => {
           ? `Choose Seats — ${detailMovie?.title} @ ${bookingSchedule.startTime}`
           : 'Choose Seats'}
         open={showSeatModal}
-        onClose={() => { setShowSeatModal(false); setChosenSeats([]); }}
+        onClose={() => { setShowSeatModal(false); setChosenSeats([]); setSeatError(''); }}
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowSeatModal(false); setChosenSeats([]); }}>
+            <Button variant="outline" onClick={() => { setShowSeatModal(false); setChosenSeats([]); setSeatError(''); }}>
               Cancel
             </Button>
             <Button
-              disabled={chosenSeats.length === 0}
-              onClick={() => setShowConfirmModal(true)}
+              onClick={() => {
+                if (chosenSeats.length === 0) { setSeatError('Please select at least one seat to continue.'); return; }
+                setSeatError('');
+                setShowConfirmModal(true);
+              }}
             >
               Continue ({chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''}) →
             </Button>
@@ -543,6 +548,12 @@ const Browse = () => {
               <span>{rooms.find(r => r.id === bookingSchedule.roomId)?.name ?? '—'}</span>
             </div>
 
+            {seatError && (
+              <div className="auth-error" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} /> {seatError}
+              </div>
+            )}
+
             {seatsLoading ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)' }}>
                 Loading seat availability…
@@ -551,7 +562,7 @@ const Browse = () => {
               <SeatMap
                 template={template}
                 bookedSeats={bookedSeats}
-                onConfirm={seats => setChosenSeats(seats)}
+                onChange={seats => { setChosenSeats(seats); if (seats.length) setSeatError(''); }}
               />
             ) : (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
