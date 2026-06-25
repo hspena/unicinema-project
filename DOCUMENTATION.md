@@ -41,18 +41,20 @@ dashboard and permission scope:
 | Role | Internal key | Responsibilities |
 |------|--------------|------------------|
 | **Admin** | `Admin` | System-wide administration: users, rooms, movies, snacks, and analytics. |
-| **Cinema Room (Manager)** | `Cinema Room` | Per-cinema operations: schedules, staff, tickets, and analytics. |
+| **Cinema Room (Manager)** | `Cinema Room` | Per-cinema operations: schedules, staff, tickets, the walk-up desk, and analytics. |
 | **Staff** | `Staff` | Front-of-house operations: daily schedule, ticket scanning, and walk-up bookings. |
 | **Moviegoer** | `Moviegoer` | Customer-facing: browse movies, view schedules, book tickets, use CineBot, and manage tickets. |
 
 ### Key Features
 - **Role-based access** — interface and navigation are determined by the authenticated user's role.
+- **Email and Google authentication** — email/password sign-in plus Google sign-in, which auto-provisions a Moviegoer profile on first use.
 - **Real-time data** — Firebase Realtime Database propagates changes to all connected clients without polling.
 - **Configurable room layouts** — managers design seat layouts through a visual template builder.
 - **Automated scheduling** — showtimes are generated from a set of operational constraints.
 - **QR-code tickets** — each booking produces a QR code that staff scan for check-in.
 - **AI chatbot (CineBot)** — a movie-recommendation assistant backed by the Google Gemini API.
 - **Per-movie ticket pricing** — each movie carries its own editable seat price.
+- **Walk-in (guest) reviews** — staff can capture a rating and comment for a walk-in booking on the customer's behalf.
 - **Performance and review insights** — a dedicated module aggregates attendance and ratings into stats, trend charts, and downloadable PDF reports.
 
 ---
@@ -166,6 +168,7 @@ unicinema-project/
 │       │   ├── RoomTemplateBuilder.tsx  # Visual seat-layout designer
 │       │   ├── AutoScheduleModal.tsx    # Auto-schedule generator dialog
 │       │   ├── PaymentModal.tsx         # Demo payment dialog (paid bookings)
+│       │   ├── GuestReviewModal.tsx     # Staff-captured walk-in (guest) reviews
 │       │   └── WalkupBooking.tsx        # Counter booking flow
 │       │
 │       ├── hooks/
@@ -280,6 +283,22 @@ useEffect(() => {
 default view. Firebase error codes are mapped to user-facing messages
 (e.g. `auth/invalid-credential` → "Invalid email or password").
 
+### Google sign-in
+
+`loginWithGoogle()` delegates to `signInWithGoogle()` in the user service. It
+attempts a popup-based flow first and falls back to a full-page redirect when the
+popup cannot be used (blocked, unsupported, or a network error). On the first
+sign-in for an account, a `Moviegoer` profile is provisioned automatically with a
+derived, unique username.
+
+Two details make the redirect path robust:
+- On load, `AuthContext` calls `completeGoogleRedirect()` **before** attaching the
+  session listener, so a freshly provisioned profile already exists when the
+  listener runs.
+- A `provisioningRef` guard suppresses the listener's orphan-cleanup logout while
+  a new Google profile is being written, preventing the half-created account from
+  being signed out mid-provision.
+
 ---
 
 ## 7. The Data Layer — Services
@@ -325,6 +344,11 @@ useEffect(() => {
 
 #### `userService.ts` — Users and Authentication
 - `loginUser` / `logoutUser` — Firebase Authentication wrappers.
+- `signInWithGoogle` / `completeGoogleRedirect` — Google OAuth sign-in (popup with
+  redirect fallback). New accounts are provisioned by `provisionGoogleUser`, which
+  creates a `Moviegoer` profile and derives a unique username via
+  `generateUniqueUsername` (sanitises a base string and appends a numeric suffix
+  on collisions).
 - `createUser` — to avoid Firebase automatically signing the admin in as the
   newly created account, user creation is performed through a **secondary Firebase
   app instance**, which is deleted immediately afterwards. This preserves the
@@ -352,8 +376,9 @@ useEffect(() => {
   overlaps, preventing two screenings from occupying the same room concurrently.
 - `autoStatus` — derives `upcoming` / `running` / `completed` from the current time.
 - `generateAutoSchedule` — a **pure function** that produces a day's showtimes
-  from a constraint set (movies, dates, day start/end, gap, repeats). It packs
-  screenings sequentially, alternates movies round-robin, and discards any
+  from a constraint set (movies, dates, day start/end, gap, repeats, and an
+  optional recess window). It packs screenings sequentially, alternates movies
+  round-robin, skips past a configured rest/recess window, and discards any
   screening that would run past the day's end. See [§9](#9-feature-automated-scheduling).
 
 #### `bookingService.ts` — Ticket Bookings
@@ -376,6 +401,9 @@ useEffect(() => {
 - `getMovieAverageRating` computes the aggregate rating displayed on movie cards.
 - `subscribeToMovieReviews` (per movie) and `subscribeToAllReviews` (catalogue-wide)
   provide real-time review data; the latter feeds the review-insights module ([§11](#11-feature-movie-performance-and-review-insights)).
+- `getReviewForBooking` — looks up a review by booking ID. Walk-in (guest) reviews
+  all share the synthetic `userId` `'GUEST'`, so they are de-duplicated by booking
+  rather than by user; see `GuestReviewModal` and [§11](#11-feature-movie-performance-and-review-insights).
 
 #### `notificationService.ts` — In-App Notifications
 - Per-user notifications stored at `/notifications/{userId}`, each carrying a
@@ -437,7 +465,7 @@ function** with no side effects, which makes it deterministic and unit-testable
 in isolation.
 
 **Input:** a configuration (room, movie list, dates, day start/end, gap, repeats
-per day) and the movies' durations.
+per day, and an optional recess window) and the movies' durations.
 **Output:** a list of schedule payloads. It performs no clash detection and no
 database writes — those are the caller's responsibility.
 
@@ -445,8 +473,10 @@ The algorithm:
 1. Build a **round-robin playlist** — with movies `[A, B, C]` and two repeats,
    the result is `A B C A B C`, so movies alternate rather than repeat consecutively.
 2. From `dayStart`, place each screening sequentially, adding the configured gap after each.
-3. If a screening would end after `dayEnd`, stop for that day.
-4. Repeat for each selected date.
+3. If a recess window (`recessStart`–`recessEnd`) is configured and a screening
+   would overlap it, push the screening to start once the recess ends.
+4. If a screening would end after `dayEnd`, stop for that day.
+5. Repeat for each selected date.
 
 Separating generation (pure logic) from persistence (side effects) keeps the
 algorithm easy to reason about and test.
@@ -498,6 +528,14 @@ genres and return derived data, making the analytics independently testable. The
 page subscribes to movies, genres, bookings (`subscribeToAllBookings`), and
 reviews (`subscribeToAllReviews`), then feeds the combined data through these
 functions. See the computation detail in [§14.9](#14-system-logic-and-algorithms).
+
+### Walk-in (guest) reviews
+Walk-in customers do not have accounts, so staff can capture a review on their
+behalf through `GuestReviewModal` (surfaced from the walk-up desk in
+`StaffIndex` / `WalkupBooking`). These reviews are written with the synthetic
+`userId` `'GUEST'`; because that value is shared across all guests, duplicates are
+prevented per booking via `getReviewForBooking` rather than per user. Guest
+reviews feed the same `reviews` collection and therefore the same insights above.
 
 ---
 
@@ -792,6 +830,9 @@ for each selected date:
     cursor = dayStart (in minutes)
     for each movieId in playlist:
         end = cursor + movie.duration
+        if recess configured AND screening overlaps recess window:
+            cursor = recessEnd            # resume after the recess
+            end    = cursor + movie.duration
         if end > dayEnd: break          # no capacity left for the day
         emit schedule {start: cursor, end}
         cursor = end + gapMinutes        # gap before the next screening
@@ -848,6 +889,24 @@ computeTimeSeries(movieIds, bookings, reviews, range, now):
 Attendance is measured from **checked-in** bookings (actual attendance), not
 merely confirmed ones. Both functions are deterministic and side-effect-free, so
 they can be unit-tested without Firebase.
+
+### 14.10 Google sign-in flow (`signInWithGoogle`)
+
+```
+loginWithGoogle()
+   ▼
+signInWithPopup(googleProvider)
+   ├─ popup blocked / unsupported / network error → signInWithRedirect (page navigates away)
+   └─ success → provisionGoogleUser(firebaseUser):
+                  profile exists?  ── yes ──► return existing User
+                                  └─ no  ──► derive unique username,
+                                             create Moviegoer profile, claim username
+
+On next app load (redirect path):
+   completeGoogleRedirect() runs BEFORE the auth listener attaches
+   → provisions/loads the profile so the orphan-cleanup check sees a valid account
+   (a provisioningRef guard suppresses logout while the profile is being written)
+```
 
 ---
 

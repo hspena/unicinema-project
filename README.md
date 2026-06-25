@@ -14,15 +14,17 @@ For a complete technical reference — architecture, external APIs, data model
 ## Features
 
 - **Role-based dashboards** — the interface and navigation adapt to the authenticated user's role.
+- **Email and Google authentication** — email/password sign-in plus Google sign-in, which auto-provisions a Moviegoer profile on first use.
 - **Real-time data** — Firebase Realtime Database propagates changes to all connected clients.
 - **User management** — administrators create users; moviegoers can self-register.
 - **Movie and genre catalogue** — with content ratings, synopsis, cast, and poster styling.
 - **Configurable room layouts** — a visual builder for seat layouts (sections and seats).
-- **Showtime scheduling** — manual scheduling with clash detection, plus an automated schedule generator.
+- **Showtime scheduling** — manual scheduling with clash detection, plus an automated schedule generator with an optional recess window.
 - **Seat-level booking** — interactive seat selection on a live seat map; occupied seats are disabled.
 - **Per-movie ticket pricing** — each movie has its own editable seat price, applied at booking.
 - **QR-code ticketing** — each booking generates a scannable QR code for staff check-in.
 - **CineBot** — an AI assistant that recommends movies from the live catalogue.
+- **Movie reviews** — moviegoers rate and review movies they have booked; staff can capture reviews for walk-in customers.
 - **Performance & review insights** — attendance and rating analytics with trend charts and downloadable PDF reports (Admin and Manager).
 - **In-app notifications** — booking confirmations, cancellations, reminders, and promotions.
 - **Light and dark themes.**
@@ -144,8 +146,8 @@ The architecture follows a unidirectional dependency: UI (pages/components) →
 | Role | Default view | Capabilities |
 |------|--------------|--------------|
 | **Admin** | Dashboard | Manage users, rooms, movies, and snacks; view analytics and movie performance/review reports. |
-| **Cinema Room** (Manager) | Dashboard | Manage schedules, staff, and tickets; view analytics and movie performance/review reports. |
-| **Staff** | Schedule & Seats | View the daily schedule, scan tickets, and process walk-up bookings. |
+| **Cinema Room** (Manager) | Dashboard | Manage schedules, staff, tickets, and the walk-up desk; view analytics and movie performance/review reports. |
+| **Staff** | Schedule & Seats | View the daily schedule, scan tickets, process walk-up bookings, and capture guest reviews. |
 | **Moviegoer** | Now Showing | Browse movies, view schedules, book tickets, use CineBot, and manage tickets. |
 
 ---
