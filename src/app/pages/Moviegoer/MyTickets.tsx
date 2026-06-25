@@ -10,9 +10,10 @@ import {
 } from '../../services/reviewService';
 import { getUserById } from '../../services/userService';
 import { createNotification } from '../../services/notificationService';
+import { SnackSummary } from '../../components/SnackSelector';
 import {
   IconGlyph, Hourglass, CheckCircle2, XCircle, Save, Send, Star,
-  AlertTriangle, Ticket, Pencil, QrCode,
+  AlertTriangle, Ticket, Pencil, QrCode, Popcorn,
 } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -427,6 +428,20 @@ const MyTickets = () => {
                       {lbl}
                     </span>
                   ))}
+                </div>
+              )}
+
+              {/* Snacks */}
+              {b.snacks && b.snacks.length > 0 && (
+                <div style={{
+                  marginTop: 12, padding: '8px 12px',
+                  background: 'var(--navy)', borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)',
+                }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Popcorn size={12} /> Snacks
+                  </div>
+                  <SnackSummary snacks={b.snacks} compact />
                 </div>
               )}
 

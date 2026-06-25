@@ -3,8 +3,9 @@ import { Button, Modal, Badge } from './ui';
 import SeatMap from './ui/SeatMap';
 import { Room, RoomTemplate, subscribeToTemplates } from '../services/templateService';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../services/movieService';
-import { Schedule, subscribeToRoomSchedules, autoStatus, formatDate, todayString } from '../services/scheduleService';
-import { createBooking, getBookedSeats } from '../services/bookingService';
+import { Schedule, subscribeToRoomSchedules, autoStatus, formatDate, todayString, snacksAllowed } from '../services/scheduleService';
+import { createBooking, getBookedSeats, BookingSnack } from '../services/bookingService';
+import SnackSelector, { SnackSummary, snacksTotal } from './SnackSelector';
 import { createNotification } from '../services/notificationService';
 import { getNotificationPrefs } from '../utils/preferences';
 import { subscribeToUsers } from '../services/userService';
@@ -12,7 +13,7 @@ import { User } from '../types';
 import GuestReviewModal, { ReviewableBooking } from './GuestReviewModal';
 import {
   Check, ArrowLeft, ArrowRight, Hourglass, AlertTriangle, User as UserIcon,
-  Search, X, Film, CircleDot, Clock, PartyPopper, IconGlyph, Star,
+  Search, X, Film, CircleDot, Clock, PartyPopper, IconGlyph, Star, Popcorn,
 } from '../utils/icons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,11 +37,12 @@ const generateTicketCode = (): string => {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) => {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   // Step 1: choose mode + guest/account info
   // Step 2: pick show
   // Step 3: pick seats
-  // Step 4: confirm + done
+  // Step 4: pick snacks
+  // Step 5: confirm + done
 
   const [mode,          setMode]          = useState<BookingMode>('guest');
   const [guestName,     setGuestName]     = useState('');
@@ -56,6 +58,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [bookedSeats,      setBookedSeats]      = useState<string[]>([]);
   const [chosenSeats,      setChosenSeats]      = useState<string[]>([]);
+  const [chosenSnacks,     setChosenSnacks]     = useState<BookingSnack[]>([]);
   const [seatsLoading,     setSeatsLoading]     = useState(false);
 
   const [isSaving,     setIsSaving]     = useState(false);
@@ -97,11 +100,14 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
     ? guestName.trim()
     : (selectedUser ? ((selectedUser as any).displayName || selectedUser.name) : '');
 
+  // Whether this show allows snacks (controls the snack step).
+  const allowSnacks = selectedSchedule ? snacksAllowed(selectedSchedule) : true;
+
   // ── Reset on close ─────────────────────────────────────────────────────────
   const handleClose = () => {
     setStep(1); setMode('guest'); setGuestName(''); setUserSearch('');
     setSelectedUser(null); setSelectedSchedule(null);
-    setChosenSeats([]); setBookedSeats([]); setError('');
+    setChosenSeats([]); setChosenSnacks([]); setBookedSeats([]); setError('');
     setDoneTicket(null); setDoneBooking(null); setDoneMovie(null); setShowReview(false);
     onClose();
   };
@@ -131,6 +137,9 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
       const userName   = patronName;
       const userEmail  = mode === 'account' && selectedUser ? selectedUser.email : '';
 
+      const seatCost  = isFree ? 0 : chosenSeats.length * (movie?.price ?? 10);
+      const snackCost = snacksTotal(chosenSnacks);
+
       const booking = await createBooking({
         scheduleId: selectedSchedule.id,
         roomId:     room.id,
@@ -142,7 +151,8 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
         userName,
         userEmail,
         seats:      chosenSeats,
-        totalPrice: isFree ? 0 : chosenSeats.length * (movie?.price ?? 10),
+        ...(chosenSnacks.length ? { snacks: chosenSnacks } : {}),
+        totalPrice: seatCost + snackCost,
         isFree,
         paid:       true,          // paid at the counter on walk-up
         status:     'checked-in',  // ← immediately checked in
@@ -174,7 +184,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
         userId,
       });
       setDoneMovie(movie ?? null);
-      setStep(4);
+      setStep(5);
       onBooked?.(booking.ticketCode, userName);
     } catch (e: any) {
       setError(e.message ?? 'Booking failed.');
@@ -184,7 +194,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
   };
 
   // ── Step titles ────────────────────────────────────────────────────────────
-  const titles = ['', 'Patron Details', 'Select Show', 'Select Seats', 'Done'];
+  const titles = ['', 'Patron Details', 'Select Show', 'Select Seats', 'Add Snacks', 'Done'];
 
   return (
     <Modal
@@ -192,7 +202,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
       open={open}
       onClose={handleClose}
       footer={
-        step === 4 ? (
+        step === 5 ? (
           <Button onClick={handleClose}><Check size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Done</Button>
         ) : step === 1 ? (
           <>
@@ -219,9 +229,29 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
               Next <ArrowRight size={14} style={{ verticalAlign: -2, marginLeft: 4 }} />
             </Button>
           </>
-        ) : (
+        ) : step === 3 ? (
           <>
             <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Back</Button>
+            {allowSnacks ? (
+              <Button
+                onClick={() => {
+                  if (chosenSeats.length === 0) { setError('Please select at least one seat.'); return; }
+                  setError(''); setStep(4);
+                }}
+              >
+                Next <ArrowRight size={14} style={{ verticalAlign: -2, marginLeft: 4 }} />
+              </Button>
+            ) : (
+              <Button onClick={handleConfirm} disabled={isSaving || chosenSeats.length === 0}>
+                {isSaving
+                  ? <><Hourglass size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Booking…</>
+                  : <><Check size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Check In ({chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''})</>}
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            <Button variant="outline" onClick={() => setStep(3)}><ArrowLeft size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Back</Button>
             <Button onClick={handleConfirm} disabled={isSaving || chosenSeats.length === 0}>
               {isSaving
                 ? <><Hourglass size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Booking…</>
@@ -232,9 +262,9 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
       }
     >
       {/* ── Step indicator ── */}
-      {step < 4 && (
+      {step < 5 && (
         <div style={{ display: 'flex', gap: 0, marginBottom: 20 }}>
-          {[1, 2, 3].map(n => (
+          {(allowSnacks ? [1, 2, 3, 4] : [1, 2, 3]).map(n => (
             <div key={n} style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
               <div style={{
                 width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
@@ -245,7 +275,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
                 border:     step >= n ? 'none' : '1px solid var(--border)',
                 transition: 'all var(--transition)',
               }}>{n}</div>
-              {n < 3 && (
+              {n < (allowSnacks ? 4 : 3) && (
                 <div style={{
                   flex: 1, height: 2,
                   background: step > n ? 'var(--gold)' : 'var(--border)',
@@ -483,8 +513,18 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
         </div>
       )}
 
-      {/* ══ STEP 4: Done ══ */}
-      {step === 4 && doneTicket && (
+      {/* ══ STEP 4: Snacks ══ */}
+      {step === 4 && (
+        <div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 14 }}>
+            Booking for: <strong style={{ color: 'var(--gold)' }}>{patronName}</strong> · {chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''}
+          </div>
+          <SnackSelector value={chosenSnacks} onChange={setChosenSnacks} />
+        </div>
+      )}
+
+      {/* ══ STEP 5: Done ══ */}
+      {step === 5 && doneTicket && (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <div style={{ marginBottom: 14, color: 'var(--gold)', display: 'flex', justifyContent: 'center' }}><PartyPopper size={56} /></div>
           <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--success)', marginBottom: 8 }}>
@@ -512,6 +552,20 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
           <div style={{ marginTop: 20, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             {chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''} · {selectedSchedule?.startTime}
           </div>
+
+          {/* Snacks to prepare */}
+          {chosenSnacks.length > 0 && (
+            <div style={{
+              marginTop: 18, padding: '12px 16px', textAlign: 'left',
+              background: 'var(--gold-dim)', border: '1px solid var(--gold)',
+              borderRadius: 'var(--radius)',
+            }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Popcorn size={13} /> Snacks to prepare
+              </div>
+              <SnackSummary snacks={chosenSnacks} />
+            </div>
+          )}
 
           {/* Collect a review on behalf of the walk-in guest */}
           <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--border)' }}>

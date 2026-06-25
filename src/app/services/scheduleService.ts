@@ -12,11 +12,15 @@ export interface Schedule {
   date:        string;
   startTime:   string;
   endTime:     string;
-  freeTickets: boolean;   // ← new: if true, booking is free
+  freeTickets: boolean;    // if true, booking is free
+  snacksEnabled?: boolean; // if false, snacks cannot be ordered for this show (default: allowed)
   status:      ScheduleStatus;
   createdBy:   string;
   createdAt:   string;
 }
+
+/** Whether snacks may be ordered for a show. Legacy shows without the flag are allowed. */
+export const snacksAllowed = (s: { snacksEnabled?: boolean }): boolean => s.snacksEnabled !== false;
 
 export type SchedulePayload = Omit<Schedule, 'id' | 'createdAt'>;
 
@@ -232,6 +236,7 @@ export const generateAutoSchedule = (
         startTime:   toHHMM(cursor),
         endTime:     toHHMM(end),
         freeTickets: config.freeTickets,
+        snacksEnabled: true,
         status:      'upcoming',
         createdBy:   config.createdBy,
       });

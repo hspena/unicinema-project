@@ -8,9 +8,10 @@ import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../.
 import {
   Schedule as ScheduleItem,
   subscribeToAllSchedules,
-  formatDate, todayString,
+  formatDate, todayString, snacksAllowed,
 } from '../../services/scheduleService';
-import { createBooking, getBookedSeats } from '../../services/bookingService';
+import { createBooking, getBookedSeats, BookingSnack } from '../../services/bookingService';
+import SnackSelector, { SnackSummary, snacksTotal } from '../../components/SnackSelector';
 import { getUserById } from '../../services/userService';
 import { createNotification } from '../../services/notificationService';
 import { getNotificationPrefs } from '../../utils/preferences';
@@ -112,8 +113,10 @@ const SchedulePage = () => {
   const [bookingSchedule,  setBookingSchedule]  = useState<ScheduleItem | null>(null);
   const [bookedSeats,      setBookedSeats]      = useState<string[]>([]);
   const [chosenSeats,      setChosenSeats]      = useState<string[]>([]);
+  const [chosenSnacks,     setChosenSnacks]     = useState<BookingSnack[]>([]);
   const [seatsLoading,     setSeatsLoading]     = useState(false);
   const [showSeatModal,    setShowSeatModal]    = useState(false);
+  const [showSnackModal,   setShowSnackModal]   = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isBooking,        setIsBooking]        = useState(false);
@@ -143,10 +146,18 @@ const SchedulePage = () => {
   const bookingRoom  = bookingSchedule ? rooms.find(r => r.id === bookingSchedule.roomId) ?? null : null;
   const bookingTemplate = bookingRoom ? templates.find(t => t.id === bookingRoom.templateId) ?? null : null;
 
+  // ── Price breakdown ──
+  const isFreeShow      = bookingSchedule?.freeTickets ?? false;
+  const allowSnacks     = bookingSchedule ? snacksAllowed(bookingSchedule) : false;
+  const seatCost   = isFreeShow ? 0 : chosenSeats.length * seatPrice;
+  const snackCost  = snacksTotal(chosenSnacks);
+  const grandTotal = seatCost + snackCost;
+
   // ── Open seat picker for a show ──
   const handleOpenBooking = async (s: ScheduleItem) => {
     setBookingSchedule(s);
     setChosenSeats([]);
+    setChosenSnacks([]);
     setBookingDone(null);
     setSeatsLoading(true);
     setShowSeatModal(true);
@@ -174,7 +185,8 @@ const SchedulePage = () => {
         userName:   userProfile.displayName,
         userEmail:  '',
         seats:      chosenSeats,
-        totalPrice: isFree ? 0 : chosenSeats.length * seatPrice,
+        ...(chosenSnacks.length ? { snacks: chosenSnacks } : {}),
+        totalPrice: grandTotal,
         isFree,
         paid:       true,           // free shows are settled; paid shows reach here only after payment
         ...(paymentRef ? { paymentRef } : {}),
@@ -378,15 +390,15 @@ const SchedulePage = () => {
           ? `Choose Seats — ${bookingMovie?.title ?? ''} @ ${bookingSchedule.startTime}`
           : 'Choose Seats'}
         open={showSeatModal}
-        onClose={() => { setShowSeatModal(false); setChosenSeats([]); }}
+        onClose={() => { setShowSeatModal(false); setChosenSeats([]); setChosenSnacks([]); }}
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowSeatModal(false); setChosenSeats([]); }}>
+            <Button variant="outline" onClick={() => { setShowSeatModal(false); setChosenSeats([]); setChosenSnacks([]); }}>
               Cancel
             </Button>
             <Button
               disabled={chosenSeats.length === 0}
-              onClick={() => setShowConfirmModal(true)}
+              onClick={() => allowSnacks ? setShowSnackModal(true) : setShowConfirmModal(true)}
             >
               Continue ({chosenSeats.length} seat{chosenSeats.length !== 1 ? 's' : ''}) →
             </Button>
@@ -420,6 +432,25 @@ const SchedulePage = () => {
         )}
       </Modal>
 
+      {/* ══ Snack Selection Modal ══ */}
+      <Modal
+        title="Add Snacks"
+        open={showSnackModal}
+        onClose={() => setShowSnackModal(false)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowSnackModal(false)}>Back</Button>
+            <Button onClick={() => { setShowSnackModal(false); setShowConfirmModal(true); }}>
+              {chosenSnacks.length > 0
+                ? `Continue · RM ${snackCost.toFixed(2)} →`
+                : 'Continue →'}
+            </Button>
+          </>
+        }
+      >
+        <SnackSelector value={chosenSnacks} onChange={setChosenSnacks} />
+      </Modal>
+
       {/* ══ Confirm Booking Modal ══ */}
       <Modal
         title="Confirm Booking"
@@ -428,7 +459,7 @@ const SchedulePage = () => {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowConfirmModal(false)}>Back</Button>
-            {bookingSchedule?.freeTickets ? (
+            {grandTotal === 0 ? (
               <Button onClick={() => handleBook()} disabled={isBooking} icon={isBooking ? <Hourglass size={14} /> : <Ticket size={14} />}>
                 {isBooking ? 'Booking…' : 'Confirm Booking'}
               </Button>
@@ -457,10 +488,10 @@ const SchedulePage = () => {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
               {[
-                { label: 'Seats', value: `${chosenSeats.length} seat(s)` },
-                { label: 'Price', value: bookingSchedule.freeTickets
+                { label: 'Seats', value: bookingSchedule.freeTickets
                     ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={14} /> FREE</span>
-                    : `RM ${(chosenSeats.length * seatPrice).toFixed(2)}` },
+                    : `RM ${seatCost.toFixed(2)}` },
+                { label: 'Snacks', value: snackCost > 0 ? `RM ${snackCost.toFixed(2)}` : '—' },
               ].map(({ label, value }) => (
                 <div key={label} style={{ padding: '10px 12px', background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>
@@ -468,6 +499,24 @@ const SchedulePage = () => {
                 </div>
               ))}
             </div>
+
+            {/* Snack lines */}
+            {chosenSnacks.length > 0 && (
+              <div style={{ padding: '10px 14px', background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 14 }}>
+                <SnackSummary snacks={chosenSnacks} />
+              </div>
+            )}
+
+            {/* Grand total */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: 'var(--radius)', marginBottom: 14 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Total</span>
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--gold)' }}>
+                {grandTotal === 0
+                  ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={14} /> FREE</span>
+                  : `RM ${grandTotal.toFixed(2)}`}
+              </span>
+            </div>
+
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
               Selected seats: <span style={{ color: 'var(--gold)' }}>{chosenSeats.join(', ')}</span>
             </div>
@@ -478,7 +527,7 @@ const SchedulePage = () => {
       {/* ══ Payment Gateway Modal (paid shows only) ══ */}
       <PaymentModal
         open={showPaymentModal}
-        amount={chosenSeats.length * seatPrice}
+        amount={grandTotal}
         movieTitle={bookingMovie?.title ?? ''}
         seatCount={chosenSeats.length}
         onClose={() => setShowPaymentModal(false)}

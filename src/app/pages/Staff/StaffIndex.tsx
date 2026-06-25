@@ -8,9 +8,10 @@ import { Schedule, subscribeToRoomSchedules, autoStatus, todayString, formatDate
 import { Booking, checkInBooking, findBookingByCode, getBookedSeats } from '../../services/bookingService';
 import WalkupBooking from '../../components/WalkupBooking';
 import GuestReviewModal, { ReviewableBooking } from '../../components/GuestReviewModal';
+import { SnackSummary } from '../../components/SnackSelector';
 import {
   IconGlyph, Calendar, X, Building2, Ticket, Hourglass, Check,
-  CheckCircle2, CircleDot, XCircle, Maximize, ScanLine, Star,
+  CheckCircle2, CircleDot, XCircle, Maximize, ScanLine, Star, Popcorn,
 } from '../../utils/icons';
 
 
@@ -255,7 +256,7 @@ const StaffIndex = () => {
 
   // Check-in
   const [ticketCode,  setTicketCode]  = useState('');
-  const [scanResult,  setScanResult]  = useState<{ ok: boolean; message: string } | null>(null);
+  const [scanResult,  setScanResult]  = useState<{ ok: boolean; message: string; booking?: Booking } | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
@@ -321,7 +322,7 @@ const StaffIndex = () => {
         setScanResult({ ok: false, message: 'This ticket has been cancelled.' });
       } else {
         await checkInBooking(booking.id);
-        setScanResult({ ok: true, message: `${booking.userName} — checked in! (${booking.movieTitle} ${booking.showTime})` });
+        setScanResult({ ok: true, message: `${booking.userName} — checked in! (${booking.movieTitle} ${booking.showTime})`, booking });
         setTicketCode('');
         if (selectedSchedule?.id === booking.scheduleId) {
           const seats = await getBookedSeats(selectedSchedule.id);
@@ -539,10 +540,19 @@ const StaffIndex = () => {
                 border: `1px solid ${scanResult.ok ? 'rgba(76,175,130,0.3)' : 'rgba(224,92,92,0.3)'}`,
                 color: scanResult.ok ? 'var(--success)' : 'var(--danger)',
                 fontSize: '0.83rem',
-                display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                {scanResult.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                {scanResult.message}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {scanResult.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                  {scanResult.message}
+                </div>
+                {scanResult.booking?.snacks && scanResult.booking.snacks.length > 0 && (
+                  <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: 'var(--radius)' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Popcorn size={12} /> Snacks to prepare
+                    </div>
+                    <SnackSummary snacks={scanResult.booking.snacks} compact />
+                  </div>
+                )}
               </div>
             )}
 

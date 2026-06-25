@@ -8,7 +8,8 @@ import {
   Booking, subscribeToRoomBookings,
   checkInBooking, cancelBooking, findBookingByCode,
 } from '../../services/bookingService';
-import { CheckCircle2, Ticket, Hourglass, XCircle, Search, Check, ScanLine } from '../../utils/icons';
+import { SnackSummary, snacksCount } from '../../components/SnackSelector';
+import { CheckCircle2, Ticket, Hourglass, XCircle, Search, Check, ScanLine, Popcorn } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -198,6 +199,14 @@ const TicketManagement = () => {
                   {scanResult.booking.movieTitle} · {scanResult.booking.showTime} · Seats: {scanResult.booking.seats.length}
                 </div>
               )}
+              {scanResult.booking?.snacks && scanResult.booking.snacks.length > 0 && (
+                <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: 'var(--radius)' }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Popcorn size={12} /> Snacks to prepare
+                  </div>
+                  <SnackSummary snacks={scanResult.booking.snacks} compact />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -289,6 +298,14 @@ const TicketManagement = () => {
                   RM {b.totalPrice.toFixed(2)}
                 </div>
               </div>
+              {b.snacks && b.snacks.length > 0 && (
+                <div>
+                  <div className="ticket-info-label">Snacks</div>
+                  <div className="ticket-info-value" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Popcorn size={13} /> {snacksCount(b.snacks)} item{snacksCount(b.snacks) !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              )}
               {b.status === 'confirmed' && (
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
                   <Button
@@ -392,6 +409,16 @@ const TicketManagement = () => {
                 </span>
               ))}
             </div>
+
+            {/* Snacks to prepare */}
+            {detailBooking.snacks && detailBooking.snacks.length > 0 && (
+              <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--gold-dim)', border: '1px solid var(--gold)', borderRadius: 'var(--radius)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Popcorn size={13} /> Snacks to prepare
+                </div>
+                <SnackSummary snacks={detailBooking.snacks} />
+              </div>
+            )}
           </div>
         )}
       </Modal>

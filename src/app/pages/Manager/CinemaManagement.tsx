@@ -46,7 +46,7 @@ const statusBadge = (s: Schedule) => {
 const emptyForm = (roomId: string, uid: string): SchedulePayload => ({
   roomId, movieId: '', date: todayString(),
   startTime: '10:00', endTime: '12:00',
-  freeTickets: false, status: 'upcoming', createdBy: uid,
+  freeTickets: false, snacksEnabled: true, status: 'upcoming', createdBy: uid,
 });
 
 // ─── Schedule Form ────────────────────────────────────────────────────────────
@@ -155,6 +155,42 @@ const ScheduleForm = ({
           </span>
         </label>
       </div>
+
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 14px', background: 'var(--navy)',
+        border: `1px solid ${form.snacksEnabled ? 'var(--gold)' : 'var(--border)'}`,
+        borderRadius: 'var(--radius)', marginTop: 10,
+        transition: 'border-color var(--transition)',
+      }}>
+        <div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Popcorn size={14} /> Allow Snacks
+          </div>
+          <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 2 }}>
+            Let moviegoers add snacks to their order for this show
+          </div>
+        </div>
+        <label style={{ position: 'relative', display: 'inline-block', width: 40, height: 22, cursor: 'pointer' }}>
+          <input type="checkbox" checked={form.snacksEnabled ?? true}
+            onChange={e => setForm(p => ({ ...p, snacksEnabled: e.target.checked }))}
+            style={{ opacity: 0, width: 0, height: 0 }} />
+          <span style={{
+            position: 'absolute', inset: 0, borderRadius: 99,
+            background: form.snacksEnabled ? 'var(--gold-dim)' : 'var(--surface-raised)',
+            border: `1px solid ${form.snacksEnabled ? 'var(--gold)' : 'var(--border)'}`,
+            transition: 'all var(--transition)',
+          }}>
+            <span style={{
+              position: 'absolute', width: 16, height: 16, borderRadius: '50%',
+              top: '50%', transform: 'translateY(-50%)',
+              left: form.snacksEnabled ? 'calc(100% - 18px)' : '2px',
+              background: form.snacksEnabled ? 'var(--gold)' : 'var(--text-muted)',
+              transition: 'all var(--transition)',
+            }} />
+          </span>
+        </label>
+      </div>
     </>
   );
 };
@@ -218,6 +254,7 @@ const CinemaManagement = () => {
       roomId: s.roomId, movieId: s.movieId, date: s.date,
       startTime: s.startTime, endTime: s.endTime,
       freeTickets: s.freeTickets ?? false,
+      snacksEnabled: s.snacksEnabled !== false,
       status: s.status, createdBy: s.createdBy,
     });
     setFormError('');

@@ -7,6 +7,16 @@ import { db } from '../config/firebase';
 
 export type BookingStatus = 'confirmed' | 'checked-in' | 'cancelled';
 
+// A snack line ordered as part of a booking. Stored on the booking so staff can
+// see what to prepare at check-in.
+export interface BookingSnack {
+  snackId: string;
+  name:    string;
+  emoji:   string;
+  price:   number;   // unit price in RM at time of booking
+  qty:     number;
+}
+
 export interface Booking {
   id:          string;
   ticketCode:  string;
@@ -20,6 +30,7 @@ export interface Booking {
   userName:    string;
   userEmail:   string;
   seats:       string[];
+  snacks?:     BookingSnack[];   // snacks ordered with this booking (optional)
   totalPrice:  number;
   isFree:      boolean;
   paid:        boolean;       // true once payment is settled (always true for free shows)
