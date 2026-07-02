@@ -119,6 +119,12 @@ The central architectural principle is unidirectional dependency: **UI depends
 on services; services depend on Firebase.** This boundary keeps data-access logic
 out of components and makes each layer independently testable.
 
+<p align="center">
+  <img src="docs/images/architecture.png" width="720" alt="High-level architecture diagram" />
+</p>
+
+*Figure 1 — System architecture: React SPA, service layer, Firebase, and the Gemini API.*
+
 ---
 
 ## 4. Folder Structure
@@ -465,6 +471,12 @@ Notable design decisions:
 - **Catalogue grounding** — the system prompt embeds the live movie catalogue,
   constraining recommendations to titles that actually exist in the database.
 
+<p align="center">
+  <img src="docs/images/cinebot.png" width="720" alt="CineBot chat with movie cards and quick-reply chips" />
+</p>
+
+*Figure 2 — CineBot rendering a recommendation with movie cards and quick-reply chips.*
+
 ---
 
 ## 9. Feature: Automated Scheduling
@@ -490,6 +502,12 @@ The algorithm:
 Separating generation (pure logic) from persistence (side effects) keeps the
 algorithm easy to reason about and test.
 
+<p align="center">
+  <img src="docs/images/auto-scheduling.png" width="720" alt="Automated scheduling configuration and generated showtimes" />
+</p>
+
+*Figure 3 — The auto-schedule generator: constraints in, a generated day of showtimes out.*
+
 ---
 
 ## 10. Feature: QR-Code Tickets
@@ -502,6 +520,14 @@ algorithm easy to reason about and test.
   `checkInBooking` transitions its status to `checked-in`.
 
 The result is a complete ticketing lifecycle: **book → QR code → scan → checked in.**
+
+<p align="center">
+  <img src="docs/images/ticket-qr.png" width="45%" alt="Moviegoer ticket displaying its QR code" />
+  &nbsp;&nbsp;
+  <img src="docs/images/qr-scanner.png" width="45%" alt="Staff camera scanner checking a ticket in" />
+</p>
+
+*Figure 4 — Left: a moviegoer's ticket QR code. Right: the staff camera scanner at check-in.*
 
 ---
 
@@ -546,6 +572,12 @@ behalf through `GuestReviewModal` (surfaced from the walk-up desk in
 prevented per booking via `getReviewForBooking` rather than per user. Guest
 reviews feed the same `reviews` collection and therefore the same insights above.
 
+<p align="center">
+  <img src="docs/images/review-insights.png" width="720" alt="Movie performance and review insights page" />
+</p>
+
+*Figure 5 — The review-insights module: per-movie attendance stats, trend chart, and rankings.*
+
 ---
 
 ## 12. External APIs and Services
@@ -553,7 +585,7 @@ reviews feed the same `reviews` collection and therefore the same insights above
 The application has no custom backend. All integrations are invoked directly from
 the browser: three external APIs and a small set of browser APIs.
 
-### 11.1 Firebase Authentication API
+### 12.1 Firebase Authentication API
 Used in `userService.ts` and `AuthContext.tsx` for account and session management.
 
 | Function (Firebase SDK) | Usage |
@@ -565,7 +597,7 @@ Used in `userService.ts` and `AuthContext.tsx` for account and session managemen
 | `updatePassword` + `reauthenticateWithCredential` + `EmailAuthProvider` | `changePassword` — re-authenticate before a password change. |
 | `initializeApp` / `deleteApp` (secondary app) | `createUser` — create a user without disrupting the admin's session. |
 
-### 11.2 Firebase Realtime Database API
+### 12.2 Firebase Realtime Database API
 Every service uses the same set of SDK primitives, which constitute the entire
 database surface of the project:
 
@@ -579,7 +611,7 @@ database surface of the project:
 | `remove(ref)` | Delete data. |
 | `onValue(ref, cb)` / `off(ref)` | Attach / detach a real-time listener. |
 
-### 11.3 Google Gemini API (CineBot)
+### 12.3 Google Gemini API (CineBot)
 Invoked as a REST call (no SDK) in `geminiService.ts`:
 
 - **Endpoint:** `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=…`
@@ -591,7 +623,7 @@ Invoked as a REST call (no SDK) in `geminiService.ts`:
   `responseSchema`.
 - **Transport:** the browser `fetch` API, with a three-attempt retry on `429`/`503`.
 
-### 11.4 Browser APIs
+### 12.4 Browser APIs
 - **MediaDevices (camera)** — accessed via `html5-qrcode` in `QrScanner.tsx` to read ticket QR codes.
 - **Canvas** — used by `qrcode` to render the ticket QR image to a data URL.
 - **`localStorage`** — persists the theme preference (`ThemeContext`) and caches notification preferences.
@@ -719,6 +751,13 @@ erDiagram
 
 > `SNACK` is a concession catalogue that is otherwise standalone; it is
 > referenced only through the snack line items embedded in a `Booking`.
+
+<p align="center">
+  <img src="docs/images/erd.png" width="760" alt="Entity-relationship / logical data model diagram" />
+</p>
+
+*Figure 6 — Logical data model (ERD). Use this rendered image if the Mermaid block
+above does not display in your Markdown viewer.*
 
 **Cardinality summary:**
 - A **Genre** has many **Movies**; each Movie belongs to one Genre.
