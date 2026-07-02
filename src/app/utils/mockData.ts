@@ -10,13 +10,13 @@ export const MOVIES: Movie[] = [
 ];
 
 export const USERS: User[] = [
-  { id: 'USR001', name: 'Admin Master',  email: 'admin@unicinema.com',  role: 'Admin',        status: 'active',   joined: '2024-01-10' },
-  { id: 'USR002', name: 'Galaxy Room',   email: 'galaxy@unicinema.com', role: 'Cinema Room',  status: 'active',   joined: '2024-02-14' },
-  { id: 'USR003', name: 'Aurora Room',   email: 'aurora@unicinema.com', role: 'Cinema Room',  status: 'inactive', joined: '2024-03-01' },
-  { id: 'USR004', name: 'James Walton',  email: 'james@unicinema.com',  role: 'Staff',        status: 'active',   joined: '2024-04-08' },
-  { id: 'USR005', name: 'Maria Chen',    email: 'maria@unicinema.com',  role: 'Staff',        status: 'active',   joined: '2024-04-15' },
-  { id: 'USR006', name: 'Alex Taylor',   email: 'alex@unicinema.com',   role: 'Moviegoer',    status: 'active',   joined: '2024-05-22' },
-  { id: 'USR007', name: 'Sam Rivers',    email: 'sam@unicinema.com',    role: 'Moviegoer',    status: 'active',   joined: '2024-06-01' },
+  { id: 'USR001', name: 'Admin Master', username: 'admin', displayName: 'Admin Master', email: 'admin@unicinema.com',  role: 'Admin',        status: 'active',   joined: '2024-01-10' },
+  { id: 'USR002', name: 'Galaxy Room', username: 'galaxy', displayName: 'Galaxy Room',   email: 'galaxy@unicinema.com', role: 'Cinema Room',  status: 'active',   joined: '2024-02-14' },
+  { id: 'USR003', name: 'Aurora Room', username: 'aurora', displayName: 'Aurora Room',   email: 'aurora@unicinema.com', role: 'Cinema Room',  status: 'inactive', joined: '2024-03-01' },
+  { id: 'USR004', name: 'James Walton',  username: 'james', displayName: 'James Walton',  email: 'james@unicinema.com',  role: 'Staff',        status: 'active',   joined: '2024-04-08' },
+  { id: 'USR005', name: 'Maria Chen',    username: 'maria', displayName: 'Maria Chen',    email: 'maria@unicinema.com',  role: 'Staff',        status: 'active',   joined: '2024-04-15' },
+  { id: 'USR006', name: 'Alex Taylor',   username: 'alex', displayName: 'Alex Taylor',   email: 'alex@unicinema.com',   role: 'Moviegoer',    status: 'active',   joined: '2024-05-22' },
+  { id: 'USR007', name: 'Sam Rivers',    username: 'sam', displayName: 'Sam Rivers',    email: 'sam@unicinema.com',    role: 'Moviegoer',    status: 'active',   joined: '2024-06-01' },
 ];
 
 export const ROOMS: Room[] = [
