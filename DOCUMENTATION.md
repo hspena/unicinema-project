@@ -54,6 +54,7 @@ dashboard and permission scope:
 - **QR-code tickets** — each booking produces a QR code that staff scan for check-in.
 - **AI chatbot (CineBot)** — a movie-recommendation assistant backed by the Google Gemini API.
 - **Per-movie ticket pricing** — each movie carries its own editable seat price.
+- **Snack ordering with bookings** — customers can add concessions to a booking; the order is stored on the ticket so staff can prepare it at check-in.
 - **Walk-in (guest) reviews** — staff can capture a rating and comment for a walk-in booking on the customer's behalf.
 - **Performance and review insights** — a dedicated module aggregates attendance and ratings into stats, trend charts, and downloadable PDF reports.
 
@@ -169,6 +170,7 @@ unicinema-project/
 │       │   ├── AutoScheduleModal.tsx    # Auto-schedule generator dialog
 │       │   ├── PaymentModal.tsx         # Demo payment dialog (paid bookings)
 │       │   ├── GuestReviewModal.tsx     # Staff-captured walk-in (guest) reviews
+│       │   ├── SnackSelector.tsx        # Add-snacks step for the booking flow
 │       │   └── WalkupBooking.tsx        # Counter booking flow
 │       │
 │       ├── hooks/
@@ -380,10 +382,15 @@ useEffect(() => {
   optional recess window). It packs screenings sequentially, alternates movies
   round-robin, skips past a configured rest/recess window, and discards any
   screening that would run past the day's end. See [§9](#9-feature-automated-scheduling).
+- `snacksAllowed` — reports whether snacks may be ordered for a show, gated by the
+  optional `Schedule.snacksEnabled` flag (legacy shows without the flag are allowed).
 
 #### `bookingService.ts` — Ticket Bookings
-- A `Booking` records the seats, screening, price, payment, and status
-  (`confirmed` / `checked-in` / `cancelled`).
+- A `Booking` records the seats, screening, price, payment state (`paid`,
+  optional `paymentRef`), and status (`confirmed` / `checked-in` / `cancelled`).
+- A booking may include an optional `snacks` array of `BookingSnack` line items
+  (snack id, name, emoji, unit price at booking time, and quantity). Snacks are
+  stored on the booking so staff can prepare the order at check-in.
 - `generateTicketCode` — produces a readable code such as `TKT-7KQ2MA`, excluding
   visually ambiguous characters (e.g. `0`/`O`, `1`/`I`).
 - `getBookedSeats` — returns occupied seats for a screening so the seat map can
@@ -394,6 +401,8 @@ useEffect(() => {
 #### `snackService.ts` — Concessions
 - CRUD plus `restockSnack` (increments stock) and `seedDefaultSnacks` for an initial catalogue.
 - Snacks have a category (Food, Beverage, Combo, etc.) and an `available` flag.
+- The catalogue also feeds the booking flow: `SnackSelector` subscribes to snacks
+  and offers the available, in-stock items as add-ons (see [§14.3](#14-system-logic-and-algorithms)).
 
 #### `reviewService.ts` — Reviews and Ratings
 - Moviegoers submit a 1–5 star rating and comment, tied to a booking (a booking
@@ -604,8 +613,9 @@ definitions.
 | **Movie** | `id, title, genreId →Genre, duration, year, price, rating, synopsis, director, cast, emoji, color, createdBy` | `movieService.ts` |
 | **RoomTemplate** | `id, name, gridRows, gridCols, sections{}, createdBy` | `templateService.ts` |
 | **Room** | `id, name, templateId →RoomTemplate, status, managerId →User` | `templateService.ts` |
-| **Schedule** | `id, roomId →Room, movieId →Movie, date, startTime, endTime, freeTickets, status, createdBy` | `scheduleService.ts` |
-| **Booking** | `id, ticketCode, scheduleId →Schedule, roomId, movieId, userId →User, seats[], totalPrice, isFree, status, bookedAt` | `bookingService.ts` |
+| **Schedule** | `id, roomId →Room, movieId →Movie, date, startTime, endTime, freeTickets, snacksEnabled?, status, createdBy` | `scheduleService.ts` |
+| **Booking** | `id, ticketCode, scheduleId →Schedule, roomId, movieId, userId →User, seats[], snacks?[], totalPrice, isFree, paid, paymentRef?, status, bookedAt` | `bookingService.ts` |
+| **BookingSnack** | `snackId →Snack, name, emoji, price, qty` (embedded in `Booking.snacks`) | `bookingService.ts` |
 | **Snack** | `id, name, category, price, stock, emoji, description, available` | `snackService.ts` |
 | **Review** | `id, movieId →Movie, userId →User, rating, comment, bookingId →Booking, createdAt` | `reviewService.ts` |
 | **AppNotification** | `id, type, title, message, read, createdAt` (stored per user) | `notificationService.ts` |
@@ -636,6 +646,7 @@ erDiagram
     SCHEDULE ||--o{ BOOKING : "booked as"
     MOVIE ||--o{ REVIEW : "receives"
     BOOKING ||--|| REVIEW : "entitles"
+    BOOKING }o--o{ SNACK : "orders (embedded lines)"
 
     USER {
         string id PK
@@ -681,7 +692,9 @@ erDiagram
         string scheduleId FK
         string userId FK
         string seats
+        list   snacks
         number totalPrice
+        bool   paid
         enum   status
     }
     REVIEW {
@@ -704,8 +717,8 @@ erDiagram
     }
 ```
 
-> `SNACK` is intentionally standalone — it holds no relationships to other
-> entities and functions as a simple concession catalogue.
+> `SNACK` is a concession catalogue that is otherwise standalone; it is
+> referenced only through the snack line items embedded in a `Booking`.
 
 **Cardinality summary:**
 - A **Genre** has many **Movies**; each Movie belongs to one Genre.
@@ -715,7 +728,8 @@ erDiagram
 - A **User** has many **Bookings** and many **Reviews**.
 - A **Review** references one User, one Movie, and the Booking that authorises it.
 - A **User** has many **AppNotifications**.
-- **Snacks** are an independent catalogue with no relationships.
+- A **Booking** may embed many snack line items (`BookingSnack`), each referencing
+  a **Snack**; a Snack may appear in many bookings (many-to-many via embedded lines).
 
 ### 13.3 Firebase storage paths
 
@@ -775,14 +789,24 @@ Browse / Schedule page
    ▼
 Open SeatMap modal
    │ getBookedSeats(scheduleId) ─────► disable occupied seats
-   │ user selects seats
+   │ user selects seats (live via SeatMap onChange)
    ▼
-Free screening?  ── yes ──► skip payment
+Continue → validate ≥1 seat  ── none ──► inline error, stay on step
+   │ ok
+   ▼
+snacksAllowed(schedule)?  ── yes ──► SnackSelector step (optional add-ons)
+   │ no / done
+   ▼
+Confirm modal → grandTotal = seatCost + snackCost
+   │   seatCost  = freeShow ? 0 : seats × movie.price (RM 10 fallback)
+   │   snackCost = Σ (snack.price × qty)
+   ▼
+grandTotal == 0?  ── yes ──► skip payment
    │ no
    ▼
-PaymentModal (demo)  → totalPrice = seats × movie.price (RM 10 fallback)
+PaymentModal (demo)
    ▼
-createBooking(payload)
+createBooking(payload)   (includes snacks[] when any were chosen)
    ├─ push() generates the booking id
    ├─ generateTicketCode() → "TKT-XXXXXX"
    └─ set() writes to /bookings

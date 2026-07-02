@@ -21,6 +21,7 @@ For a complete technical reference — architecture, external APIs, data model
 - **Configurable room layouts** — a visual builder for seat layouts (sections and seats).
 - **Showtime scheduling** — manual scheduling with clash detection, plus an automated schedule generator with an optional recess window.
 - **Seat-level booking** — interactive seat selection on a live seat map; occupied seats are disabled.
+- **Snack ordering** — customers can add concessions to a booking; the order is stored on the ticket for staff to prepare at check-in.
 - **Per-movie ticket pricing** — each movie has its own editable seat price, applied at booking.
 - **QR-code ticketing** — each booking generates a scannable QR code for staff check-in.
 - **CineBot** — an AI assistant that recommends movies from the live catalogue.
