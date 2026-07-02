@@ -659,105 +659,14 @@ definitions.
 
 ### 13.2 Entity-Relationship Diagram
 
-> Rendered with **Mermaid**, which GitHub and most Markdown viewers display as a
-> diagram. `||--o{` denotes a one-to-many relationship; `||--||` denotes one-to-one.
-
-```mermaid
-erDiagram
-    USER ||--o{ BOOKING : "makes"
-    USER ||--o{ REVIEW : "writes"
-    USER ||--o{ NOTIFICATION : "receives"
-    USER ||--o{ ROOM : "manages"
-
-    GENRE ||--o{ MOVIE : "categorises"
-    ROOM_TEMPLATE ||--o{ ROOM : "is layout for"
-
-    ROOM ||--o{ SCHEDULE : "hosts"
-    MOVIE ||--o{ SCHEDULE : "shown in"
-
-    SCHEDULE ||--o{ BOOKING : "booked as"
-    MOVIE ||--o{ REVIEW : "receives"
-    BOOKING ||--|| REVIEW : "entitles"
-    BOOKING }o--o{ SNACK : "orders (embedded lines)"
-
-    USER {
-        string id PK
-        string username UK
-        string email
-        enum   role
-        enum   status
-    }
-    GENRE {
-        string id PK
-        string name
-    }
-    MOVIE {
-        string id PK
-        string genreId FK
-        string title
-        int    duration
-        number price
-        enum   rating
-    }
-    ROOM_TEMPLATE {
-        string id PK
-        int    gridRows
-        int    gridCols
-    }
-    ROOM {
-        string id PK
-        string templateId FK
-        string managerId FK
-        enum   status
-    }
-    SCHEDULE {
-        string id PK
-        string roomId FK
-        string movieId FK
-        string date
-        bool   freeTickets
-        enum   status
-    }
-    BOOKING {
-        string id PK
-        string ticketCode UK
-        string scheduleId FK
-        string userId FK
-        string seats
-        list   snacks
-        number totalPrice
-        bool   paid
-        enum   status
-    }
-    REVIEW {
-        string id PK
-        string movieId FK
-        string userId FK
-        string bookingId FK
-        int    rating
-    }
-    SNACK {
-        string id PK
-        string name
-        number price
-        int    stock
-    }
-    NOTIFICATION {
-        string id PK
-        enum   type
-        bool   read
-    }
-```
-
-> `SNACK` is a concession catalogue that is otherwise standalone; it is
-> referenced only through the snack line items embedded in a `Booking`.
-
 <p align="center">
   <img src="docs/images/erd.png" width="760" alt="Entity-relationship / logical data model diagram" />
 </p>
 
-*Figure 6 — Logical data model (ERD). Use this rendered image if the Mermaid block
-above does not display in your Markdown viewer.*
+<p align="center"><em>Figure 6 — Logical data model (ERD) for UniCinema.</em></p>
+
+> `SNACK` is a concession catalogue that is otherwise standalone; it is
+> referenced only through the snack line items embedded in a `Booking`.
 
 **Cardinality summary:**
 - A **Genre** has many **Movies**; each Movie belongs to one Genre.
