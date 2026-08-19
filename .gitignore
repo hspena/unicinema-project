@@ -13,5 +13,8 @@ serviceAccountKey.json
 # Production build
 /build
 
+# Local editor / tooling config
+/.claude
+
 # Misc
 .DS_Store
