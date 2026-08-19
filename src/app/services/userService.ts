@@ -84,7 +84,7 @@ const googleProvider = new GoogleAuthProvider();
  * Derive a unique, valid username (`/^[a-z0-9_]+$/`, 3–20 chars) from a base
  * string (e.g. an email prefix), appending a numeric suffix on collisions.
  */
-const generateUniqueUsername = async (base: string): Promise<string> => {
+export const generateUniqueUsername = async (base: string): Promise<string> => {
   let root = (base || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
   if (root.length < 3) root = `user${root}`;
   root = root.slice(0, 20);
