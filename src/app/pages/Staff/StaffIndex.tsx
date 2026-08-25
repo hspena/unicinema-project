@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import SeatMap from '../../components/ui/SeatMap';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
 import { Movie, subscribeToMovies } from '../../services/movieService';
-import { Schedule, subscribeToRoomSchedules, autoStatus, todayString, formatDate } from '../../services/scheduleService';
+import { Schedule, subscribeToRoomSchedules, effectiveStatus, todayString, formatDate } from '../../services/scheduleService';
 import { Booking, checkInBooking, findBookingByCode, getBookedSeats } from '../../services/bookingService';
 import WalkupBooking from '../../components/WalkupBooking';
 import GuestReviewModal, { ReviewableBooking } from '../../components/GuestReviewModal';
@@ -55,7 +55,7 @@ const FullscreenSchedule = ({
 
   const s      = schedules[idx];
   const movie  = movies.find(m => m.id === s.movieId);
-  const status = autoStatus(s.date, s.startTime, s.endTime);
+  const status = effectiveStatus(s);
 
   const statusLabel = {
     running:   { text: 'NOW PLAYING', color: '#4caf82', pulse: true },
@@ -164,7 +164,7 @@ const FullscreenSchedule = ({
         }}>
           {schedules.map((sc, i) => {
             const mv  = movies.find(m => m.id === sc.movieId);
-            const st  = autoStatus(sc.date, sc.startTime, sc.endTime);
+            const st  = effectiveStatus(sc);
             const col = st === 'running' ? '#4caf82' : st === 'upcoming' ? '#c9a84c' : 'rgba(255,255,255,0.3)';
             return (
               <div
@@ -228,7 +228,7 @@ const navBtn: React.CSSProperties = {
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 const statusBadge = (s: Schedule) => {
-  const st  = autoStatus(s.date, s.startTime, s.endTime);
+  const st  = effectiveStatus(s);
   const map = {
     running:   { v: 'success' as const, label: 'Running',   icon: <CircleDot size={11} /> },
     upcoming:  { v: 'info'    as const, label: 'Upcoming',  icon: <Hourglass size={11} /> },
@@ -289,7 +289,7 @@ const StaffIndex = () => {
   // Auto-select the currently running or next upcoming show
   useEffect(() => {
     if (!todaySchedules.length || selectedSchedule) return;
-    const running = todaySchedules.find(s => autoStatus(s.date, s.startTime, s.endTime) === 'running');
+    const running = todaySchedules.find(s => effectiveStatus(s) === 'running');
     const first   = running ?? todaySchedules[0];
     if (first) handleSelectSchedule(first);
   }, [todaySchedules.length]);

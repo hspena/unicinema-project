@@ -8,7 +8,7 @@ import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../.
 import {
   Schedule as ScheduleItem,
   subscribeToAllSchedules,
-  formatDate, todayString, snacksAllowed,
+  formatDate, todayString, snacksAllowed, effectiveStatus,
 } from '../../services/scheduleService';
 import { createBooking, getBookedSeats, BookingSnack } from '../../services/bookingService';
 import SnackSelector, { SnackSummary, snacksTotal } from '../../components/SnackSelector';
@@ -48,15 +48,6 @@ const statusConfig = {
   upcoming:  { variant: 'info'    as const, label: 'Upcoming',    icon: <Hourglass size={11} /> },
   completed: { variant: 'muted'   as const, label: 'Completed',   icon: <CheckCircle2 size={11} /> },
   cancelled: { variant: 'danger'  as const, label: 'Cancelled',   icon: <XCircle size={11} /> },
-};
-
-const getStatus = (date: string, start: string, end: string) => {
-  const now   = new Date();
-  const s     = new Date(`${date}T${start}:00`);
-  const e     = new Date(`${date}T${end}:00`);
-  if (now >= s && now <= e) return 'running';
-  if (now < s)              return 'upcoming';
-  return 'completed';
 };
 
 // ─── Filter button ────────────────────────────────────────────────────────────
@@ -328,7 +319,7 @@ const SchedulePage = () => {
                       .map(s => {
                         const movie  = movies.find(m => m.id === s.movieId);
                         const genre  = genres.find(g => g.id === movie?.genreId);
-                        const status = getStatus(s.date, s.startTime, s.endTime);
+                        const status = effectiveStatus(s);
                         const { variant, label, icon } = statusConfig[status];
 
                         return (

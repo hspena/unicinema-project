@@ -89,6 +89,26 @@ export const deleteSchedule = async (id: string): Promise<void> => {
   await remove(scheduleRef(id));
 };
 
+/** One-shot read of every show in a room on a given date (YYYY-MM-DD). */
+export const getRoomSchedulesOn = async (
+  roomId: string,
+  date:   string
+): Promise<Schedule[]> => {
+  const snap = await get(schedulesRef());
+  if (!snap.exists()) return [];
+  return (Object.values(snap.val()) as Schedule[])
+    .filter(s => s.roomId === roomId && s.date === date)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+};
+
+/** Mark several shows cancelled in one write. */
+export const cancelSchedules = async (ids: string[]): Promise<void> => {
+  if (!ids.length) return;
+  const updates: Record<string, ScheduleStatus> = {};
+  ids.forEach((id) => { updates[`${id}/status`] = 'cancelled'; });
+  await update(schedulesRef(), updates);
+};
+
 export const subscribeToRoomSchedules = (
   roomId: string,
   callback: (schedules: Schedule[]) => void
@@ -139,6 +159,22 @@ export const formatDate = (dateStr: string): string => {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 };
+
+/**
+ * The status to display for a show. A stored 'cancelled' always wins — it is
+ * a manual decision that the clock can't override. Everything else is derived
+ * from the current time, so shows roll from upcoming → running → completed
+ * without anyone having to write to the database.
+ */
+export const effectiveStatus = (
+  s: Pick<Schedule, 'date' | 'startTime' | 'endTime' | 'status'>
+): ScheduleStatus =>
+  s.status === 'cancelled' ? 'cancelled' : autoStatus(s.date, s.startTime, s.endTime);
+
+/** Whether a show can still be booked (not cancelled, not over). */
+export const isBookable = (
+  s: Pick<Schedule, 'date' | 'startTime' | 'endTime' | 'status'>
+): boolean => ['upcoming', 'running'].includes(effectiveStatus(s));
 
 export const autoStatus = (date: string, startTime: string, endTime: string): ScheduleStatus => {
   const now   = new Date();

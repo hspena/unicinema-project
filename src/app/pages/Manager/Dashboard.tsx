@@ -3,7 +3,7 @@ import { Card, Badge, Button, Modal } from '../../components/ui';
 import { useAuth }                    from '../../context/AuthContext';
 import { subscribeToRooms, subscribeToTemplates, templateSeatCount, Room, RoomTemplate, roomManagerIds } from '../../services/templateService';
 import { subscribeToMovies, subscribeToGenres, Movie, Genre } from '../../services/movieService';
-import { subscribeToRoomSchedules, autoStatus, todayString, formatDate } from '../../services/scheduleService';
+import { subscribeToRoomSchedules, effectiveStatus, isBookable, todayString, formatDate } from '../../services/scheduleService';
 import { subscribeToRoomBookings, Booking } from '../../services/bookingService';
 import { subscribeToMovieReviews, getMovieAverageRating, Review } from '../../services/reviewService';
 import { Schedule } from '../../services/scheduleService';
@@ -198,7 +198,7 @@ const CMDashboard = () => {
 
   // Upcoming shows (not yet completed)
   const upcomingShows = schedules
-    .filter(s => ['upcoming', 'running'].includes(autoStatus(s.date, s.startTime, s.endTime)))
+    .filter(s => isBookable(s))
     .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))
     .slice(0, 5);
 
@@ -296,7 +296,7 @@ const CMDashboard = () => {
             ) : (
               todaySchedules.map(s => {
                 const movie  = movies.find(m => m.id === s.movieId);
-                const status = autoStatus(s.date, s.startTime, s.endTime);
+                const status = effectiveStatus(s);
                 const showBookings = bookings.filter(b => b.scheduleId === s.id && b.status !== 'cancelled');
                 const vMap   = { running: 'success', upcoming: 'info', completed: 'muted', cancelled: 'danger' } as const;
                 return (
@@ -355,7 +355,7 @@ const CMDashboard = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {upcomingShows.map(s => {
                 const movie  = movies.find(m => m.id === s.movieId);
-                const status = autoStatus(s.date, s.startTime, s.endTime);
+                const status = effectiveStatus(s);
                 const vMap   = { running: 'success', upcoming: 'info', completed: 'muted', cancelled: 'danger' } as const;
                 return (
                   <div key={s.id} style={{

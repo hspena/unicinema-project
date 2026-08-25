@@ -3,7 +3,7 @@ import { Card, Badge, Button, Modal } from '../../components/ui';
 import { subscribeToUsers }         from '../../services/userService';
 import { subscribeToRooms }         from '../../services/templateService';
 import { subscribeToMovies, subscribeToGenres, Genre, Movie } from '../../services/movieService';
-import { subscribeToAllSchedules, autoStatus, todayString } from '../../services/scheduleService';
+import { subscribeToAllSchedules, effectiveStatus, todayString } from '../../services/scheduleService';
 import { subscribeToMovieReviews }  from '../../services/reviewService';
 import { Review }                   from '../../services/reviewService';
 import { User }                     from '../../types';
@@ -275,7 +275,7 @@ const AdminDashboard = () => {
             ) : (
               rooms.map(r => {
                 const nowPlaying = todaySchedules.find(s =>
-                  s.roomId === r.id && autoStatus(s.date, s.startTime, s.endTime) === 'running'
+                  s.roomId === r.id && effectiveStatus(s) === 'running'
                 );
                 const nowMovie = nowPlaying ? movies.find(m => m.id === nowPlaying.movieId) : null;
                 return (
@@ -317,7 +317,7 @@ const AdminDashboard = () => {
               todaySchedules.map(s => {
                 const movie  = movies.find(m => m.id === s.movieId);
                 const room   = rooms.find(r => r.id === s.roomId);
-                const status = autoStatus(s.date, s.startTime, s.endTime);
+                const status = effectiveStatus(s);
                 const vMap   = { running: 'success', upcoming: 'info', completed: 'muted', cancelled: 'danger' } as const;
                 return (
                   <div key={s.id} className="schedule-slot">

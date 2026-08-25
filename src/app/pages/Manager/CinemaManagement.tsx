@@ -3,13 +3,14 @@ import { Card, Badge, Button, Modal } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import SeatMap from '../../components/ui/SeatMap';
 import AutoScheduleModal from '../../components/AutoScheduleModal';
+import CancelDayModal from '../../components/CancelDayModal';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount, updateRoom, roomManagerIds } from '../../services/templateService';
 import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Snack, subscribeToSnacks, updateSnack, CATEGORY_ICONS } from '../../services/snackService';
 import {
   Schedule, SchedulePayload,
   subscribeToRoomSchedules, createSchedule, updateSchedule, deleteSchedule,
-  computeEndTime, todayString, formatDate, autoStatus, findClash,
+  computeEndTime, todayString, formatDate, effectiveStatus, findClash,
 } from '../../services/scheduleService';
 import {
   IconGlyph, AlertTriangle, Ticket, Map, Pause, Play, Calendar, Popcorn,
@@ -32,7 +33,7 @@ const getBucketLocal = (date: string, startTime: string, endTime: string): TimeB
 };
 
 const statusBadge = (s: Schedule) => {
-  const computed = autoStatus(s.date, s.startTime, s.endTime);
+  const computed = effectiveStatus(s);
   const map = {
     running:   { v: 'success' as const, label: 'Running',   icon: <CircleDot size={12} /> },
     upcoming:  { v: 'info'    as const, label: 'Upcoming',  icon: <Hourglass size={12} /> },
@@ -216,6 +217,7 @@ const CinemaManagement = () => {
   const [formError,       setFormError]       = useState('');
   const [isSaving,        setIsSaving]        = useState(false);
   const [showSeatMap,     setShowSeatMap]     = useState(false);
+  const [showCancelDay,   setShowCancelDay]   = useState(false);
 
   const myRoom     = rooms.find(r => uid && roomManagerIds(r).includes(uid)) ?? rooms[0] ?? null;
   const myTemplate = myRoom ? templates.find(t => t.id === myRoom.templateId) ?? null : null;
@@ -420,6 +422,7 @@ const CinemaManagement = () => {
                 </button>
               ))}
               <Button size="sm" variant="outline" icon={<Sparkles size={14} />} onClick={() => setShowAutoSchedule(true)}>Auto Schedule</Button>
+              <Button size="sm" variant="danger" icon={<XCircle size={14} />} onClick={() => setShowCancelDay(true)}>Cancel Day</Button>
               <Button size="sm" icon={<Plus size={14} />} onClick={openAdd}>Add Show</Button>
             </div>
           }
@@ -611,6 +614,14 @@ const CinemaManagement = () => {
           await Promise.all(snacks.map(s => updateSnack(s.id, { available: enabled })));
         }}
         onDone={() => { /* schedules refresh via subscription */ }}
+      />
+
+      <CancelDayModal
+        open={showCancelDay}
+        onClose={() => setShowCancelDay(false)}
+        roomId={myRoom.id}
+        roomName={myRoom.name}
+        movies={movies}
       />
 
       <Modal

@@ -77,6 +77,30 @@ export const cancelBooking = async (id: string): Promise<void> => {
   await update(bookingRef(id), { status: 'cancelled' });
 };
 
+/**
+ * Every still-valid booking (confirmed or already checked in) across a set of
+ * shows. Used when a whole day of shows is called off and each ticket holder
+ * has to be found and told.
+ */
+export const getActiveBookingsForSchedules = async (
+  scheduleIds: string[]
+): Promise<Booking[]> => {
+  if (!scheduleIds.length) return [];
+  const ids  = new Set(scheduleIds);
+  const snap = await get(bookingsRef());
+  if (!snap.exists()) return [];
+  return (Object.values(snap.val()) as Booking[])
+    .filter(b => ids.has(b.scheduleId) && b.status !== 'cancelled');
+};
+
+/** Mark several bookings cancelled in one write. */
+export const cancelBookings = async (ids: string[]): Promise<void> => {
+  if (!ids.length) return;
+  const updates: Record<string, BookingStatus> = {};
+  ids.forEach((id) => { updates[`${id}/status`] = 'cancelled'; });
+  await update(bookingsRef(), updates);
+};
+
 export const findBookingByCode = async (code: string): Promise<Booking | null> => {
   const snap = await get(bookingsRef());
   if (!snap.exists()) return null;

@@ -5,7 +5,7 @@ import SeatMap from '../../components/ui/SeatMap';
 import PaymentModal from '../../components/PaymentModal';
 import { Movie, Genre, subscribeToMovies, subscribeToGenres } from '../../services/movieService';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
-import { Schedule as ScheduleItem, subscribeToAllSchedules, autoStatus, formatDate } from '../../services/scheduleService';
+import { Schedule as ScheduleItem, subscribeToAllSchedules, effectiveStatus, isBookable, formatDate } from '../../services/scheduleService';
 import { createBooking, getBookedSeats } from '../../services/bookingService';
 import {
   Review, subscribeToMovieReviews, createReview, updateReview as updateReviewFn,
@@ -158,7 +158,7 @@ const Browse = () => {
 
     const ms = schedules.filter(s =>
       s.movieId === movie.id &&
-      ['upcoming', 'running'].includes(autoStatus(s.date, s.startTime, s.endTime))
+      isBookable(s)
     ).sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
     setMovieSchedules(ms);
 
@@ -317,7 +317,7 @@ const Browse = () => {
             const genre   = genres.find(g => g.id === m.genreId);
             const hasShow = schedules.some(s =>
               s.movieId === m.id &&
-              ['upcoming', 'running'].includes(autoStatus(s.date, s.startTime, s.endTime))
+              isBookable(s)
             );
             return (
               <div key={m.id} className="movie-card">
@@ -421,7 +421,7 @@ const Browse = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {movieSchedules.map(s => {
                       const room   = rooms.find(r => r.id === s.roomId);
-                      const status = autoStatus(s.date, s.startTime, s.endTime);
+                      const status = effectiveStatus(s);
                       return (
                         <div key={s.id} style={{
                           display: 'flex', alignItems: 'center', gap: 12,

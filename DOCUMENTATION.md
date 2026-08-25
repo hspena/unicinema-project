@@ -57,6 +57,7 @@ dashboard and permission scope:
 - **Snack ordering with bookings** — customers can add concessions to a booking; the order is stored on the ticket so staff can prepare it at check-in.
 - **Walk-in (guest) reviews** — staff can capture a rating and comment for a walk-in booking on the customer's behalf.
 - **Performance and review insights** — a dedicated module aggregates attendance and ratings into stats, trend charts, and downloadable PDF reports.
+- **Room-day cancellation** — a manager can call off a whole day of shows; every affected ticket is cancelled and its holder is notified in-app and by email.
 
 ---
 
@@ -433,9 +434,32 @@ useEffect(() => {
   `markAllNotificationsRead` back the notification dropdown in the Topbar
   (unread badge and mark-as-read behaviour).
 - **Triggers:** booking confirmed (Browse and walk-up), booking cancelled
-  (My Tickets), new movie added (Movie Management), and "starting soon" reminders.
+  (My Tickets), new movie added (Movie Management), room-day cancellation
+  (Cinema Management), and "starting soon" reminders.
 - **Preferences** are stored at `/notificationPrefs/{userId}` (`utils/preferences.ts`)
   and gate which notifications a user receives; they are edited on the Settings page.
+  Cancellation notices deliberately bypass preferences — a moviegoer must be told
+  that a show they hold a ticket for is not happening.
+
+#### `emailService.ts` — Transactional Email
+- Sends application-composed email through the **EmailJS REST API** (see
+  [§12.5](#125-emailjs-api-transactional-email)). Firebase Auth handles its own
+  emails (password resets); anything the app writes itself goes through here.
+- `isEmailConfigured()` — true only when all three `REACT_APP_EMAILJS_*` variables
+  are set. When they are absent the service is a no-op: `sendEmail` returns a
+  `skipped` result instead of throwing, so the app runs (and still raises in-app
+  notifications) without email credentials.
+- `sendEmail` / `sendEmails` — never throw. Results are a
+  `sent | skipped | failed` union, and the batch helper tallies them so the
+  caller can report exactly what reached whom.
+
+#### `cancellationService.ts` — Room-Day Cancellation
+- Orchestrates calling off every remaining show in a room on one date; see
+  [§14.11](#1411-room-day-cancellation-cancelroomday).
+- `previewRoomDayCancellation` — read-only impact report (shows, tickets, people,
+  refund total) used to populate the confirmation dialog before anything is written.
+- `cancelRoomDay` — cancels the schedules and their bookings, then notifies each
+  affected moviegoer in-app and by email.
 
 #### `geminiService.ts` — CineBot AI
 See [§8](#8-cinebot--ai-chatbot-integration-geminiservicets).
@@ -627,6 +651,23 @@ Invoked as a REST call (no SDK) in `geminiService.ts`:
 - **MediaDevices (camera)** — accessed via `html5-qrcode` in `QrScanner.tsx` to read ticket QR codes.
 - **Canvas** — used by `qrcode` to render the ticket QR image to a data URL.
 - **`localStorage`** — persists the theme preference (`ThemeContext`) and caches notification preferences.
+
+### 12.5 EmailJS API (transactional email)
+Invoked as a REST call (no SDK) in `emailService.ts`:
+
+- **Endpoint:** `POST https://api.emailjs.com/api/v1.0/email/send`
+- **Authentication:** public key from `REACT_APP_EMAILJS_PUBLIC_KEY`, plus the
+  service and template ids. Restrict the account to the app's domain in the
+  EmailJS dashboard — like the Gemini key, these values are bundled into the
+  client-side JS.
+- **Request composition:** `service_id`, `template_id`, `user_id`, and
+  `template_params` carrying `to_email`, `to_name`, `subject`, `heading`,
+  `message`, and `details` (the EmailJS template renders these variables).
+- **Transport:** the browser `fetch` API. Failures are captured and returned,
+  never thrown, so a mail outage cannot roll back the database change that
+  triggered the email.
+- **Optional:** with the variables unset, email is skipped and only in-app
+  notifications are delivered.
 
 ---
 
@@ -880,6 +921,52 @@ On next app load (redirect path):
    (a provisioningRef guard suppresses logout while the profile is being written)
 ```
 
+### 14.11 Room-day cancellation (`cancelRoomDay`)
+
+A manager can call off every remaining show in their room for a chosen date
+(today or a future day). One action has to stay consistent across four places,
+so the order of operations matters: the database is settled first, and people
+are told afterwards.
+
+```
+previewRoomDayCancellation(roomId, date)      ← read-only, drives the dialog
+   │  shows on that date
+   │    └─ keep only effectiveStatus ∈ {upcoming, running}
+   │       (already-cancelled and already-finished shows are left alone)
+   │  bookings on those shows with status ≠ cancelled
+   ▼
+manager confirms with a reason
+   ▼
+cancelRoomDay()
+   ├─ 1. cancelSchedules(ids)   ── multi-path update → status = 'cancelled'
+   ├─ 2. cancelBookings(ids)    ── multi-path update → status = 'cancelled'
+   │      (steps 1–2 are awaited: if they fail, nobody is told)
+   ├─ 3. group bookings by userId  → one notification per person, not per ticket
+   ├─ 4. createNotification(...)   ── in-app, type 'cancel'
+   └─ 5. sendEmails(...)           ── EmailJS, one email per person
+          failures are counted and reported, never thrown
+   ▼
+CancellationResult { schedulesCancelled, bookingsCancelled, usersNotified,
+                     emailsSent, emailsSkipped, emailsFailed }
+```
+
+Design notes:
+
+- **Cancelled beats computed.** Show status is normally derived from the clock
+  (`autoStatus`). `effectiveStatus` wraps it so a stored `'cancelled'` always
+  wins — a manual decision the clock must not overwrite — and `isBookable`
+  builds on it so cancelled shows disappear from every booking surface
+  (Browse, Schedule, the walk-up desk).
+- **Finished shows are never cancelled.** Cancelling "today" at 20:00 leaves the
+  afternoon screenings untouched, so their audience gets no spurious email.
+- **Checked-in tickets are cancelled too.** If the screening is not happening,
+  no ticket for it stays valid.
+- **Preferences are bypassed.** Unlike promos and reminders, a cancellation is
+  information the ticket holder needs in order not to travel to a closed room.
+- **Email is optional.** Without EmailJS credentials the emails count as
+  *skipped* and the in-app notifications still land; the dialog reports which
+  channels actually went out.
+
 ---
 
 ## 15. Running the Project
@@ -891,6 +978,8 @@ npm install
 # 2. Create a .env file from the template and populate the keys
 #    cp .env.example .env   (then edit it)
 #    Requires REACT_APP_GEMINI_API_KEY and the REACT_APP_FIREBASE_* values.
+#    The REACT_APP_EMAILJS_* values are optional — without them cancellation
+#    notices are delivered in-app only.
 
 # 3. Start the development server (http://localhost:3000)
 npm start

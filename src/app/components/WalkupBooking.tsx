@@ -3,7 +3,7 @@ import { Button, Modal, Badge } from './ui';
 import SeatMap from './ui/SeatMap';
 import { Room, RoomTemplate, subscribeToTemplates } from '../services/templateService';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../services/movieService';
-import { Schedule, subscribeToRoomSchedules, autoStatus, formatDate, todayString, snacksAllowed } from '../services/scheduleService';
+import { Schedule, subscribeToRoomSchedules, effectiveStatus, isBookable, formatDate, todayString, snacksAllowed } from '../services/scheduleService';
 import { createBooking, getBookedSeats, BookingSnack } from '../services/bookingService';
 import SnackSelector, { SnackSummary, snacksTotal } from './SnackSelector';
 import { createNotification } from '../services/notificationService';
@@ -84,7 +84,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
   const todayStr    = todayString();
   const liveShows   = schedules.filter(s =>
     s.date === todayStr &&
-    ['upcoming', 'running'].includes(autoStatus(s.date, s.startTime, s.endTime))
+    isBookable(s)
   ).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   // User search results
@@ -425,7 +425,7 @@ const WalkupBooking = ({ room, open, onClose, onBooked }: WalkupBookingProps) =>
                 const movie   = movies.find(m => m.id === s.movieId);
                 const genre   = genres.find(g => g.id === movie?.genreId);
                 const isSelected = selectedSchedule?.id === s.id;
-                const status  = autoStatus(s.date, s.startTime, s.endTime);
+                const status  = effectiveStatus(s);
 
                 return (
                   <div
