@@ -1,6 +1,7 @@
 import {
   signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
   updatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
@@ -75,6 +76,28 @@ export const loginUser = async (
 };
 
 export const logoutUser = () => signOut(auth);
+
+// ─── Password reset ───────────────────────────────────────────────────────────
+
+/**
+ * Send a Firebase password-reset email. The link drops the user on Firebase's
+ * hosted reset page, then returns them to the app's login screen.
+ *
+ * Resolves silently for unknown addresses so the form can't be used to probe
+ * which emails are registered — the caller always shows the same "check your
+ * inbox" message.
+ */
+export const sendPasswordReset = async (email: string): Promise<void> => {
+  try {
+    await sendPasswordResetEmail(auth, email.trim(), {
+      url: `${window.location.origin}${window.location.pathname}`,
+      handleCodeInApp: false,
+    });
+  } catch (err: any) {
+    if (err?.code === 'auth/user-not-found') return;
+    throw err;
+  }
+};
 
 // ─── Google sign-in ───────────────────────────────────────────────────────────
 

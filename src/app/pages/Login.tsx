@@ -3,9 +3,9 @@ import { useAuth }  from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Toggle }   from '../components/ui';
 import { registerMoviegoer, isUsernameAvailable } from '../services/userService';
-import { Film, AlertTriangle, X, Check, Hourglass, CheckCircle2, ArrowRight } from '../utils/icons';
+import { Film, AlertTriangle, X, Check, Hourglass, CheckCircle2, ArrowRight, ArrowLeft, MailCheck } from '../utils/icons';
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'forgot';
 
 // ─── Google "G" brand mark ────────────────────────────────────────────────────
 const GoogleIcon = ({ size = 18 }: { size?: number }) => (
@@ -70,7 +70,7 @@ export const UserDisplay = ({
 
 // ─── Main Login Page ──────────────────────────────────────────────────────────
 const Login = () => {
-  const { login, loginWithGoogle, isLoading, error, clearError } = useAuth();
+  const { login, loginWithGoogle, requestPasswordReset, isLoading, error, clearError } = useAuth();
   const { darkMode, setDarkMode }               = useTheme();
 
   const [mode, setMode] = useState<AuthMode>('login');
@@ -90,6 +90,12 @@ const Login = () => {
   const [regSuccess,     setRegSuccess]     = useState(false);
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [usernameStatus,   setUsernameStatus]   = useState<'idle' | 'available' | 'taken' | 'invalid'>('idle');
+
+  // Forgot-password fields
+  const [resetEmail,   setResetEmail]   = useState('');
+  const [resetError,   setResetError]   = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent,    setResetSent]    = useState(false);
 
   // ── Login ──────────────────────────────────────────────────────────────────
   const [loginHint, setLoginHint] = useState('');
@@ -165,8 +171,32 @@ const Login = () => {
     }
   };
 
+  // ── Forgot password ────────────────────────────────────────────────────────
+  const handleResetRequest = async () => {
+    const target = resetEmail.trim();
+    if (!target)                        { setResetError('Please enter your email address.'); return; }
+    if (!/^\S+@\S+\.\S+$/.test(target)) { setResetError('Please enter a valid email address.'); return; }
+
+    setResetError('');
+    setResetLoading(true);
+    try {
+      await requestPasswordReset(target);
+      setResetSent(true);
+    } catch (err: any) {
+      setResetError(err.message ?? 'Could not send the reset email. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+  const handleResetKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleResetRequest();
+  };
+
   const switchMode = (m: AuthMode) => {
     setMode(m); clearError(); setRegError(''); setRegSuccess(false); setLoginHint('');
+    setResetError(''); setResetSent(false);
+    // Carry whatever the user already typed into the sign-in email field.
+    if (m === 'forgot') setResetEmail(prev => prev || email);
   };
 
   const usernameIndicator = () => {
@@ -249,6 +279,14 @@ const Login = () => {
                 <input className="input-field" type="password" placeholder="••••••••"
                   value={password} onChange={e => { setPassword(e.target.value); if (loginHint) setLoginHint(''); }}
                   onKeyDown={handleKeyDown} disabled={isLoading} />
+                <div style={{ marginTop: 6, textAlign: 'right' }}>
+                  <span
+                    style={{ fontSize: '0.76rem', color: 'var(--gold)', cursor: 'pointer' }}
+                    onClick={() => switchMode('forgot')}
+                  >
+                    Forgot password?
+                  </span>
+                </div>
               </div>
 
               <button
@@ -385,6 +423,76 @@ const Login = () => {
                   <div style={{ marginTop: 14, fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                     Already have an account?{' '}
                     <span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => switchMode('login')}>Sign in</span>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* ── FORGOT PASSWORD ── */}
+          {mode === 'forgot' && (
+            <>
+              <h3>Reset Password</h3>
+              <p>We'll email you a secure link to set a new password.</p>
+
+              {resetSent ? (
+                <div style={{
+                  padding: 20, textAlign: 'center',
+                  background: 'rgba(76,175,130,0.1)',
+                  border: '1px solid rgba(76,175,130,0.3)',
+                  borderRadius: 'var(--radius)',
+                }}>
+                  <div style={{ marginBottom: 12, color: 'var(--success)', display: 'flex', justifyContent: 'center' }}><MailCheck size={40} /></div>
+                  <div style={{ fontWeight: 600, color: 'var(--success)', marginBottom: 6 }}>Check Your Inbox</div>
+                  <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+                    If an account exists for <strong>{resetEmail.trim()}</strong>, a password reset
+                    link is on its way. The link expires in one hour — remember to check your spam folder.
+                  </div>
+                  <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => { setEmail(resetEmail.trim()); switchMode('login'); }}>
+                    Back to Sign In <ArrowRight size={14} style={{ verticalAlign: -2, marginLeft: 4 }} />
+                  </button>
+                  <div style={{ marginTop: 12, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    Didn't get it?{' '}
+                    <span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => setResetSent(false)}>
+                      Send again
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {resetError && (
+                    <div className="auth-error">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {resetError}</span>
+                      <span style={{ cursor: 'pointer', fontWeight: 700 }} onClick={() => setResetError('')}><X size={14} /></span>
+                    </div>
+                  )}
+
+                  <div className="input-group">
+                    <label className="input-label">Email Address</label>
+                    <input className="input-field" type="email" placeholder="you@email.com"
+                      value={resetEmail}
+                      onChange={e => { setResetEmail(e.target.value); if (resetError) setResetError(''); }}
+                      onKeyDown={handleResetKeyDown} disabled={resetLoading} />
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 3 }}>
+                      Use the email you registered with. Google accounts should sign in with Google instead.
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', opacity: resetLoading ? 0.7 : 1, marginTop: 8 }}
+                    onClick={handleResetRequest} disabled={resetLoading}
+                  >
+                    {resetLoading
+                      ? <><Hourglass size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Sending…</>
+                      : 'Send Reset Link'}
+                  </button>
+
+                  <div style={{ marginTop: 14, fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    <span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => switchMode('login')}>
+                      <ArrowLeft size={13} style={{ verticalAlign: -2, marginRight: 4 }} />Back to sign in
+                    </span>
                   </div>
                 </>
               )}

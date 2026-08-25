@@ -12,6 +12,7 @@ import {
   getCurrentUserRole,
   signInWithGoogle,
   completeGoogleRedirect,
+  sendPasswordReset,
 } from '../services/userService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ interface AuthContextValue {
   error:       string | null;
   login:       (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
   logout:      () => Promise<void>;
   setView:     (view: string) => void;
   switchRole:  (role: UserRole) => void;
@@ -41,6 +43,7 @@ const AuthContext = createContext<AuthContextValue>({
   error:       null,
   login:       async () => {},
   loginWithGoogle: async () => {},
+  requestPasswordReset: async () => {},
   logout:      async () => {},
   setView:     () => {},
   switchRole:  () => {},
@@ -169,6 +172,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // ── Password reset email ───────────────────────────────────────────────────
+  // Throws a display-ready message; the caller owns its own loading/error UI,
+  // so this deliberately leaves the shared isLoading/error state untouched.
+  const requestPasswordReset = async (email: string) => {
+    try {
+      await sendPasswordReset(email);
+    } catch (err: any) {
+      const msg =
+        err.code === 'auth/invalid-email'
+          ? 'Please enter a valid email address.'
+          : err.code === 'auth/too-many-requests'
+          ? 'Too many reset requests. Please wait a while and try again.'
+          : err.code === 'auth/network-request-failed'
+          ? 'Network error. Check your connection and try again.'
+          : err.message ?? 'Could not send the reset email. Please try again.';
+      throw new Error(msg);
+    }
+  };
+
   // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = async () => {
     await logoutUser();
@@ -190,7 +212,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         isLoggedIn, isLoading, role, actualRole, uid,
         currentView, error,
-        login, loginWithGoogle, logout, setView, switchRole, clearError,
+        login, loginWithGoogle, requestPasswordReset,
+        logout, setView, switchRole, clearError,
       }}
     >
       {children}
