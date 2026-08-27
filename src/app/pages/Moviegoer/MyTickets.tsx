@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Button, Modal, QrCodeView } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
-import { Booking, subscribeToUserBookings, cancelBooking } from '../../services/bookingService';
+import {
+  Booking, subscribeToUserBookings, cancelBookingByUser,
+  canCancelBooking, CANCELLATION_CUTOFF_HOURS,
+} from '../../services/bookingService';
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../../services/movieService';
 import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates } from '../../services/templateService';
 import {
@@ -239,6 +242,13 @@ const MyTickets = () => {
   const [showReview,   setShowReview]   = useState(false);
   const [myReviews,    setMyReviews]    = useState<Record<string, Review>>({});
   const [qrBooking,    setQrBooking]    = useState<Booking | null>(null);
+  // Ticks every minute so the cancellation window closes on screen without a reload.
+  const [now,          setNow]          = useState<Date>(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const u1 = subscribeToMovies(setMovies);
@@ -294,8 +304,19 @@ const MyTickets = () => {
   };
 
   const handleCancel = async (b: Booking) => {
+    if (!canCancelBooking(b, now)) {
+      window.alert(
+        `Bookings can only be cancelled at least ${CANCELLATION_CUTOFF_HOURS} hours before the show starts. Please see staff at the counter.`
+      );
+      return;
+    }
     if (!window.confirm(`Cancel booking ${b.ticketCode}?`)) return;
-    await cancelBooking(b.id);
+    try {
+      await cancelBookingByUser(b.id);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Could not cancel this booking.');
+      return;
+    }
     createNotification(b.userId, {
       type:    'cancel',
       title:   'Booking cancelled',
@@ -363,6 +384,7 @@ const MyTickets = () => {
           const genre   = genres.find(g => g.id === movie?.genreId);
           const hasReview = !!myReviews[b.movieId];
           const canReview = b.status === 'checked-in';
+          const cancellable = canCancelBooking(b, now);
           const template  = templateForRoom(b.roomId);
           const seatLabels = b.seats.map(s => seatLabel(s, template));
 
@@ -473,10 +495,28 @@ const MyTickets = () => {
                     </Button>
                   )}
                   {b.status === 'confirmed' && (
-                    <Button size="sm" variant="danger" onClick={() => handleCancel(b)}>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={!cancellable}
+                      title={cancellable
+                        ? undefined
+                        : `Cancellation closed — bookings must be cancelled at least ${CANCELLATION_CUTOFF_HOURS} hours before the show`}
+                      onClick={() => handleCancel(b)}
+                    >
                       Cancel Booking
                     </Button>
                   )}
+                </div>
+              )}
+
+              {b.status === 'confirmed' && !cancellable && (
+                <div style={{
+                  marginTop: 8, fontSize: '0.7rem', color: 'var(--text-muted)',
+                  textAlign: 'right',
+                }}>
+                  Cancellation closed — tickets can only be cancelled up to{' '}
+                  {CANCELLATION_CUTOFF_HOURS} hours before the show.
                 </div>
               )}
 

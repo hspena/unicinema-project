@@ -77,6 +77,51 @@ export const cancelBooking = async (id: string): Promise<void> => {
   await update(bookingRef(id), { status: 'cancelled' });
 };
 
+// ─── Self-service cancellation window ─────────────────────────────────────────
+
+/**
+ * How long before the show a moviegoer may still cancel their own booking.
+ * Staff/manager cancellations are not bound by this.
+ */
+export const CANCELLATION_CUTOFF_HOURS = 2;
+
+/** Hours left until the show starts. Negative once it has begun. */
+export const hoursUntilShowtime = (
+  b: Pick<Booking, 'showDate' | 'showTime'>,
+  now: Date = new Date()
+): number => {
+  const start = new Date(`${b.showDate}T${b.showTime}:00`).getTime();
+  return (start - now.getTime()) / 3_600_000;
+};
+
+/** Whether the moviegoer can still cancel this booking themselves. */
+export const canCancelBooking = (
+  b: Pick<Booking, 'showDate' | 'showTime' | 'status'>,
+  now: Date = new Date()
+): boolean =>
+  b.status === 'confirmed' && hoursUntilShowtime(b, now) >= CANCELLATION_CUTOFF_HOURS;
+
+/**
+ * Cancel on behalf of the ticket holder. Rejects once the show is inside the
+ * cutoff window — re-checked here against the stored booking so a stale page
+ * can't slip a late cancellation through.
+ */
+export const cancelBookingByUser = async (id: string): Promise<void> => {
+  const snap = await get(bookingRef(id));
+  if (!snap.exists()) throw new Error('Booking not found.');
+  const booking = snap.val() as Booking;
+
+  if (booking.status !== 'confirmed') {
+    throw new Error('This booking can no longer be cancelled.');
+  }
+  if (hoursUntilShowtime(booking) < CANCELLATION_CUTOFF_HOURS) {
+    throw new Error(
+      `Bookings can only be cancelled at least ${CANCELLATION_CUTOFF_HOURS} hours before the show starts. Please see staff at the counter.`
+    );
+  }
+  await cancelBooking(id);
+};
+
 /**
  * Every still-valid booking (confirmed or already checked in) across a set of
  * shows. Used when a whole day of shows is called off and each ticket holder

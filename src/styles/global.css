@@ -268,6 +268,8 @@ body {
 .btn-outline:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
 .btn-danger   { background: rgba(224,92,92,0.12); color: var(--danger); border-color: rgba(224,92,92,0.3); }
 .btn-danger:hover { background: rgba(224,92,92,0.22); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:disabled:hover { background: inherit; border-color: inherit; color: inherit; }
 .btn-sm  { padding: 5px 11px; font-size: 0.76rem; }
 .btn-icon { padding: 6px; border-radius: 6px; }
 
