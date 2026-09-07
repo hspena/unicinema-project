@@ -4,11 +4,11 @@ import { Movie } from '../services/movieService';
 import {
   SchedulePayload, AutoScheduleConfig,
   generateAutoSchedule, createSchedule, findClash,
-  todayString, formatDate,
+  todayString, formatDate, computeEndTime,
 } from '../services/scheduleService';
 import {
   IconGlyph, Sparkles, Calendar, Clock, Ticket, Popcorn,
-  Plus, X, AlertTriangle, CheckCircle2, Film, Hourglass, Coffee,
+  Plus, X, AlertTriangle, CheckCircle2, Film, Hourglass, Coffee, Crown,
 } from '../utils/icons';
 
 // ─── Reusable toggle (matches the look used elsewhere in Cinema Management) ─────
@@ -63,6 +63,8 @@ interface FormState {
   recess:       boolean;
   recessStart:  string;
   recessEnd:    string;
+  vip:          boolean;
+  vipStart:     string;
   freeTickets:  boolean;
   snacks:       boolean;
 }
@@ -72,6 +74,7 @@ const initialForm = (): FormState => ({
   dayStart: '10:00', dayEnd: '23:00',
   gapMinutes: 15, repeatPerDay: 2,
   recess: false, recessStart: '13:00', recessEnd: '14:00',
+  vip: false, vipStart: '10:00',
   freeTickets: false, snacks: true,
 });
 
@@ -97,6 +100,15 @@ const AutoScheduleModal = ({
   const reset = () => { setForm(initialForm()); setNewDate(''); setError(''); setResult(null); };
   const close = () => { reset(); onClose(); };
 
+  // The VIP block screens every selected movie once, back to back, so its
+  // length is their durations plus a gap between each.
+  const vipMovies = form.movieIds
+    .map(id => movies.find(m => m.id === id))
+    .filter((m): m is Movie => !!m && m.duration > 0);
+  const vipMinutes = vipMovies.reduce((sum, m) => sum + m.duration, 0)
+    + Math.max(0, vipMovies.length - 1) * form.gapMinutes;
+  const vipEnd = vipMinutes > 0 ? computeEndTime(form.vipStart, vipMinutes) : '';
+
   // Live preview of what would be generated
   const preview: SchedulePayload[] = useMemo(() => {
     if (form.movieIds.length === 0 || form.dates.length === 0) return [];
@@ -107,6 +119,8 @@ const AutoScheduleModal = ({
       gapMinutes: form.gapMinutes, repeatPerDay: form.repeatPerDay,
       recessStart: form.recess ? form.recessStart : undefined,
       recessEnd:   form.recess ? form.recessEnd   : undefined,
+      vipMovieIds: form.vip ? form.movieIds : undefined,
+      vipStart:    form.vip ? form.vipStart  : undefined,
       freeTickets: form.freeTickets,
     };
     return generateAutoSchedule(config, movies);
@@ -140,6 +154,17 @@ const AutoScheduleModal = ({
     if (form.movieIds.length === 0) { setError('Select at least one movie.'); return; }
     if (form.dates.length === 0)    { setError('Add at least one date.'); return; }
     if (form.dayStart >= form.dayEnd) { setError('Day start must be before day end.'); return; }
+    if (form.vip) {
+      if (!vipEnd || vipEnd <= form.vipStart) {
+        setError('The VIP slot must start and end on the same day.'); return;
+      }
+      if (form.vipStart < form.dayStart || vipEnd > form.dayEnd) {
+        setError('The VIP slot must fall within the day window.'); return;
+      }
+      if (form.recess && form.vipStart < form.recessEnd && vipEnd > form.recessStart) {
+        setError('The VIP slot overlaps the rest / recess time.'); return;
+      }
+    }
     if (form.recess) {
       if (form.recessStart >= form.recessEnd) { setError('Rest time start must be before its end.'); return; }
       if (form.recessStart < form.dayStart || form.recessEnd > form.dayEnd) {
@@ -297,6 +322,29 @@ const AutoScheduleModal = ({
         )}
       </div>
 
+      {/* ── VIP slot ── */}
+      <div style={{ marginBottom: 4, marginTop: 10 }}>
+        <ToggleRow
+          icon={<Crown size={14} />} title="VIP Time"
+          subtitle="A private screening for invited guests, before the regular shows"
+          value={form.vip} onChange={v => setForm(p => ({ ...p, vip: v }))}
+        />
+        {form.vip && (
+          <>
+            <div className="input-group" style={{ marginTop: 10, maxWidth: 220 }}>
+              <label className="input-label">VIP starts at *</label>
+              <input className="input-field" type="time" value={form.vipStart}
+                onChange={e => setForm(p => ({ ...p, vipStart: e.target.value }))} />
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: -4 }}>
+              {vipEnd
+                ? `Every movie above screens once for the VIP guests, ${form.vipStart}–${vipEnd}. Guests are invited by the admin or lecturer, so the slot takes no bookings — the regular schedule resumes after it.`
+                : 'Select the movies above to see when the VIP slot ends.'}
+            </div>
+          </>
+        )}
+      </div>
+
       {/* ── Dates ── */}
       <div className="input-group">
         <label className="input-label">Dates *</label>
@@ -371,7 +419,12 @@ const AutoScheduleModal = ({
                           </span>
                           <IconGlyph iconKey={movie?.emoji} size={13} />
                           <span style={{ color: 'var(--text-primary)' }}>{movie?.title ?? '—'}</span>
-                          {s.freeTickets && (
+                          {s.vipOnly && (
+                            <span style={{ fontSize: '0.62rem', padding: '0 5px', background: 'var(--gold-dim)', color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: 99, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              <Crown size={9} /> VIP
+                            </span>
+                          )}
+                          {!s.vipOnly && s.freeTickets && (
                             <span style={{ fontSize: '0.62rem', padding: '0 5px', background: 'var(--gold)', color: 'var(--navy)', borderRadius: 99, fontWeight: 700 }}>FREE</span>
                           )}
                         </div>

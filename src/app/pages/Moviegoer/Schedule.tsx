@@ -338,7 +338,15 @@ const SchedulePage = () => {
                             <div className="schedule-movie" style={{ flex: 1 }}>
                               <div className="schedule-movie-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {movie?.title ?? '—'}
-                                {s.freeTickets && (
+                                {s.vipOnly ? (
+                                  <span style={{
+                                    fontSize: '0.62rem', padding: '1px 6px',
+                                    background: 'var(--gold-dim)', color: 'var(--gold)',
+                                    border: '1px solid var(--gold)',
+                                    borderRadius: 99, fontWeight: 700,
+                                    display: 'inline-flex', alignItems: 'center', gap: 3,
+                                  }}>VIP ONLY</span>
+                                ) : s.freeTickets && (
                                   <span style={{
                                     fontSize: '0.62rem', padding: '1px 6px',
                                     background: 'var(--gold)', color: 'var(--navy)',
@@ -355,8 +363,18 @@ const SchedulePage = () => {
 
                             <Badge variant={variant} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{icon} {label}</Badge>
 
+                            {/* VIP screenings are invite-only, so there is nothing to book */}
+                            {isMoviegoer && s.vipOnly && (status === 'running' || status === 'upcoming') && (
+                              <span style={{
+                                marginLeft: 8, flexShrink: 0,
+                                fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic',
+                              }}>
+                                Invited guests only
+                              </span>
+                            )}
+
                             {/* Moviegoers can book directly from the schedule */}
-                            {isMoviegoer && (status === 'running' || status === 'upcoming') && movie && room.status === 'active' && (
+                            {isMoviegoer && !s.vipOnly && (status === 'running' || status === 'upcoming') && movie && room.status === 'active' && (
                               <Button
                                 size="sm"
                                 icon={<Ticket size={13} />}

@@ -126,7 +126,16 @@ const FullscreenSchedule = ({
           <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.55)' }}>
             {movie?.duration} min
           </span>
-          {s.freeTickets && (
+          {s.vipOnly ? (
+            <span style={{
+              padding: '3px 12px', borderRadius: 99,
+              background: 'transparent', color: '#c9a84c',
+              border: '1px solid #c9a84c',
+              fontSize: '0.8rem', fontWeight: 700,
+            }}>
+              VIP ONLY
+            </span>
+          ) : s.freeTickets && (
             <span style={{
               padding: '3px 12px', borderRadius: 99,
               background: '#c9a84c', color: '#0f1628',
@@ -449,7 +458,14 @@ const StaffIndex = () => {
                     <div className="schedule-movie" style={{ flex: 1 }}>
                       <div className="schedule-movie-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <IconGlyph iconKey={movie?.emoji} size={15} /> {movie?.title ?? '—'}
-                        {s.freeTickets && (
+                        {s.vipOnly ? (
+                          <span style={{
+                            marginLeft: 7, fontSize: '0.65rem', padding: '1px 5px',
+                            background: 'var(--gold-dim)', color: 'var(--gold)',
+                            border: '1px solid var(--gold)',
+                            borderRadius: 99, fontWeight: 700,
+                          }}>VIP ONLY</span>
+                        ) : s.freeTickets && (
                           <span style={{
                             marginLeft: 7, fontSize: '0.65rem', padding: '1px 5px',
                             background: 'var(--gold)', color: 'var(--navy)',

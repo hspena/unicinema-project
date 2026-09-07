@@ -15,7 +15,7 @@ import {
 import {
   IconGlyph, AlertTriangle, Ticket, Map, Pause, Play, Calendar, Popcorn,
   Folder, CircleDot, Hourglass, Plus, Pencil, Trash2, Save, Film,
-  ToggleLeft, ToggleRight, CheckCircle2, XCircle, Building2, Sparkles,
+  ToggleLeft, ToggleRight, CheckCircle2, XCircle, Building2, Sparkles, Crown,
 } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ const statusBadge = (s: Schedule) => {
 const emptyForm = (roomId: string, uid: string): SchedulePayload => ({
   roomId, movieId: '', date: todayString(),
   startTime: '10:00', endTime: '12:00',
-  freeTickets: false, snacksEnabled: true, status: 'upcoming', createdBy: uid,
+  freeTickets: false, snacksEnabled: true, vipOnly: false, status: 'upcoming', createdBy: uid,
 });
 
 // ─── Schedule Form ────────────────────────────────────────────────────────────
@@ -124,8 +124,63 @@ const ScheduleForm = ({
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 14px', background: 'var(--navy)',
-        border: `1px solid ${form.freeTickets ? 'var(--gold)' : 'var(--border)'}`,
+        border: `1px solid ${form.vipOnly ? 'var(--gold)' : 'var(--border)'}`,
         borderRadius: 'var(--radius)', marginTop: 4,
+        transition: 'border-color var(--transition)',
+      }}>
+        <div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Crown size={14} /> VIP Time
+          </div>
+          <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 2 }}>
+            A private screening for invited guests — no bookings are taken
+          </div>
+        </div>
+        <label style={{ position: 'relative', display: 'inline-block', width: 40, height: 22, cursor: 'pointer' }}>
+          <input type="checkbox" checked={form.vipOnly ?? false}
+            onChange={e => setForm(p => ({
+              ...p,
+              vipOnly: e.target.checked,
+              // VIP guests never pay and never order, so keep the record honest.
+              freeTickets:   e.target.checked ? true  : p.freeTickets,
+              snacksEnabled: e.target.checked ? false : p.snacksEnabled,
+            }))}
+            style={{ opacity: 0, width: 0, height: 0 }} />
+          <span style={{
+            position: 'absolute', inset: 0, borderRadius: 99,
+            background: form.vipOnly ? 'var(--gold-dim)' : 'var(--surface-raised)',
+            border: `1px solid ${form.vipOnly ? 'var(--gold)' : 'var(--border)'}`,
+            transition: 'all var(--transition)',
+          }}>
+            <span style={{
+              position: 'absolute', width: 16, height: 16, borderRadius: '50%',
+              top: '50%', transform: 'translateY(-50%)',
+              left: form.vipOnly ? 'calc(100% - 18px)' : '2px',
+              background: form.vipOnly ? 'var(--gold)' : 'var(--text-muted)',
+              transition: 'all var(--transition)',
+            }} />
+          </span>
+        </label>
+      </div>
+
+      {form.vipOnly ? (
+        <div style={{
+          fontSize: '0.73rem', color: 'var(--text-muted)',
+          padding: '10px 14px', marginTop: 10,
+          background: 'var(--navy)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+        }}>
+          Guests are picked in advance by the admin or lecturer and simply turn up, so
+          this slot takes no bookings and offers no snacks. It still holds the room, so
+          regular shows are scheduled around it.
+        </div>
+      ) : (
+      <>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 14px', background: 'var(--navy)',
+        border: `1px solid ${form.freeTickets ? 'var(--gold)' : 'var(--border)'}`,
+        borderRadius: 'var(--radius)', marginTop: 10,
         transition: 'border-color var(--transition)',
       }}>
         <div>
@@ -192,6 +247,8 @@ const ScheduleForm = ({
           </span>
         </label>
       </div>
+      </>
+      )}
     </>
   );
 };
@@ -257,6 +314,7 @@ const CinemaManagement = () => {
       startTime: s.startTime, endTime: s.endTime,
       freeTickets: s.freeTickets ?? false,
       snacksEnabled: s.snacksEnabled !== false,
+      vipOnly: s.vipOnly === true,
       status: s.status, createdBy: s.createdBy,
     });
     setFormError('');
@@ -466,7 +524,15 @@ const CinemaManagement = () => {
                       <div className="schedule-movie" style={{ flex: 1 }}>
                         <div className="schedule-movie-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <IconGlyph iconKey={movie?.emoji} size={15} /> {movie?.title ?? '—'}
-                          {s.freeTickets && (
+                          {s.vipOnly ? (
+                            <span style={{
+                              marginLeft: 8, fontSize: '0.68rem', padding: '1px 6px',
+                              background: 'var(--gold-dim)', color: 'var(--gold)',
+                              border: '1px solid var(--gold)',
+                              borderRadius: 99, fontWeight: 700,
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
+                            }}><Crown size={10} /> VIP</span>
+                          ) : s.freeTickets && (
                             <span style={{
                               marginLeft: 8, fontSize: '0.68rem', padding: '1px 6px',
                               background: 'var(--gold)', color: 'var(--navy)',

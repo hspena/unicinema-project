@@ -385,12 +385,16 @@ useEffect(() => {
   overlaps, preventing two screenings from occupying the same room concurrently.
 - `autoStatus` — derives `upcoming` / `running` / `completed` from the current time.
 - `generateAutoSchedule` — a **pure function** that produces a day's showtimes
-  from a constraint set (movies, dates, day start/end, gap, repeats, and an
-  optional recess window). It packs screenings sequentially, alternates movies
-  round-robin, skips past a configured rest/recess window, and discards any
-  screening that would run past the day's end. See [§9](#9-feature-automated-scheduling).
+  from a constraint set (movies, dates, day start/end, gap, repeats, and optional
+  recess and VIP windows). It packs screenings sequentially, alternates movies
+  round-robin, skips past a configured rest/recess window and the VIP slot, and
+  discards any screening that would run past the day's end.
+  See [§9](#9-feature-automated-scheduling).
 - `snacksAllowed` — reports whether snacks may be ordered for a show, gated by the
   optional `Schedule.snacksEnabled` flag (legacy shows without the flag are allowed).
+- `isVipShow` — reports whether a show is a VIP-only screening (`Schedule.vipOnly`):
+  the audience is invited in advance by the admin or lecturer, so the slot holds the
+  room but takes no bookings. `isBookable` excludes such shows.
 
 #### `bookingService.ts` — Ticket Bookings
 - A `Booking` records the seats, screening, price, payment state (`paid`,
@@ -510,18 +514,23 @@ function** with no side effects, which makes it deterministic and unit-testable
 in isolation.
 
 **Input:** a configuration (room, movie list, dates, day start/end, gap, repeats
-per day, and an optional recess window) and the movies' durations.
+per day, and optional recess and VIP windows) and the movies' durations.
 **Output:** a list of schedule payloads. It performs no clash detection and no
 database writes — those are the caller's responsibility.
 
 The algorithm:
 1. Build a **round-robin playlist** — with movies `[A, B, C]` and two repeats,
    the result is `A B C A B C`, so movies alternate rather than repeat consecutively.
-2. From `dayStart`, place each screening sequentially, adding the configured gap after each.
-3. If a recess window (`recessStart`–`recessEnd`) is configured and a screening
-   would overlap it, push the screening to start once the recess ends.
-4. If a screening would end after `dayEnd`, stop for that day.
-5. Repeat for each selected date.
+2. If a VIP slot is configured, screen every selected movie once from `vipStart`,
+   back to back with the configured gap, each flagged `vipOnly` so it takes no
+   bookings. The block's length follows the movies' durations.
+3. From `dayStart`, place each screening sequentially, adding the configured gap after each.
+4. If a **blocked window** — the recess window (`recessStart`–`recessEnd`) or the VIP
+   slot — is configured and a screening would overlap it, push the screening to start
+   once that window ends. This repeats, because clearing one window can drop the
+   screening straight into the other.
+5. If a screening would end after `dayEnd`, stop for that day.
+6. Sort the day's screenings by start time and repeat for each selected date.
 
 Separating generation (pure logic) from persistence (side effects) keeps the
 algorithm easy to reason about and test.
@@ -686,7 +695,7 @@ definitions.
 | **Movie** | `id, title, genreId →Genre, duration, year, price, rating, synopsis, director, cast, emoji, color, createdBy` | `movieService.ts` |
 | **RoomTemplate** | `id, name, gridRows, gridCols, sections{}, createdBy` | `templateService.ts` |
 | **Room** | `id, name, templateId →RoomTemplate, status, managerId →User` | `templateService.ts` |
-| **Schedule** | `id, roomId →Room, movieId →Movie, date, startTime, endTime, freeTickets, snacksEnabled?, status, createdBy` | `scheduleService.ts` |
+| **Schedule** | `id, roomId →Room, movieId →Movie, date, startTime, endTime, freeTickets, snacksEnabled?, vipOnly?, status, createdBy` | `scheduleService.ts` |
 | **Booking** | `id, ticketCode, scheduleId →Schedule, roomId, movieId, userId →User, seats[], snacks?[], totalPrice, isFree, paid, paymentRef?, status, bookedAt` | `bookingService.ts` |
 | **BookingSnack** | `snackId →Snack, name, emoji, price, qty` (embedded in `Booking.snacks`) | `bookingService.ts` |
 | **Snack** | `id, name, category, price, stock, emoji, description, available` | `snackService.ts` |
@@ -839,16 +848,24 @@ A pure function (no database writes) that fills a day with screenings:
 ```
 playlist = round-robin of movieIds, repeated `repeatPerDay` times
            e.g. [A,B,C] ×2 → A B C A B C
+blocked  = [recess window if configured] + [VIP block + gap if configured]
 for each selected date:
+    if VIP configured:
+        vipCursor = vipStart
+        for each movieId in vipMovieIds:        # every chosen movie, once
+            emit schedule {start: vipCursor, end: vipCursor + movie.duration,
+                           vipOnly: true}       # invited guests, no bookings
+            vipCursor = end + gapMinutes
     cursor = dayStart (in minutes)
     for each movieId in playlist:
         end = cursor + movie.duration
-        if recess configured AND screening overlaps recess window:
-            cursor = recessEnd            # resume after the recess
+        while screening overlaps some window w in blocked:
+            cursor = w.end                # resume after that window
             end    = cursor + movie.duration
         if end > dayEnd: break          # no capacity left for the day
         emit schedule {start: cursor, end}
         cursor = end + gapMinutes        # gap before the next screening
+    sort the day's screenings by start time
 ```
 The output is a list of `SchedulePayload` objects; the caller performs clash
 detection and persistence. See also [§9](#9-feature-automated-scheduling).

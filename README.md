@@ -19,7 +19,7 @@ For a complete technical reference — architecture, external APIs, data model
 - **User management** — administrators create users; moviegoers can self-register.
 - **Movie and genre catalogue** — with content ratings, synopsis, cast, and poster styling.
 - **Configurable room layouts** — a visual builder for seat layouts (sections and seats).
-- **Showtime scheduling** — manual scheduling with clash detection, plus an automated schedule generator with an optional recess window.
+- **Showtime scheduling** — manual scheduling with clash detection, plus an automated schedule generator with optional recess and VIP-screening windows.
 - **Seat-level booking** — interactive seat selection on a live seat map; occupied seats are disabled.
 - **Snack ordering** — customers can add concessions to a booking; the order is stored on the ticket for staff to prepare at check-in.
 - **Per-movie ticket pricing** — each movie has its own editable seat price, applied at booking.

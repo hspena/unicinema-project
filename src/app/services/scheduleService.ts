@@ -14,6 +14,7 @@ export interface Schedule {
   endTime:     string;
   freeTickets: boolean;    // if true, booking is free
   snacksEnabled?: boolean; // if false, snacks cannot be ordered for this show (default: allowed)
+  vipOnly?:     boolean;   // if true, a VIP-only screening — the audience is invited, not booked
   status:      ScheduleStatus;
   createdBy:   string;
   createdAt:   string;
@@ -21,6 +22,12 @@ export interface Schedule {
 
 /** Whether snacks may be ordered for a show. Legacy shows without the flag are allowed. */
 export const snacksAllowed = (s: { snacksEnabled?: boolean }): boolean => s.snacksEnabled !== false;
+
+/**
+ * A VIP-only slot: the guests are picked in advance by the admin or lecturer and
+ * simply turn up, so the show occupies the room but takes no bookings.
+ */
+export const isVipShow = (s: { vipOnly?: boolean }): boolean => s.vipOnly === true;
 
 export type SchedulePayload = Omit<Schedule, 'id' | 'createdAt'>;
 
@@ -171,10 +178,10 @@ export const effectiveStatus = (
 ): ScheduleStatus =>
   s.status === 'cancelled' ? 'cancelled' : autoStatus(s.date, s.startTime, s.endTime);
 
-/** Whether a show can still be booked (not cancelled, not over). */
+/** Whether a show can still be booked (not cancelled, not over, not VIP-only). */
 export const isBookable = (
-  s: Pick<Schedule, 'date' | 'startTime' | 'endTime' | 'status'>
-): boolean => ['upcoming', 'running'].includes(effectiveStatus(s));
+  s: Pick<Schedule, 'date' | 'startTime' | 'endTime' | 'status'> & { vipOnly?: boolean }
+): boolean => !isVipShow(s) && ['upcoming', 'running'].includes(effectiveStatus(s));
 
 export const autoStatus = (date: string, startTime: string, endTime: string): ScheduleStatus => {
   const now   = new Date();
@@ -202,6 +209,8 @@ export interface AutoScheduleConfig {
   gapMinutes:   number;     // gap between consecutive shows
   recessStart?: string;     // HH:MM — start of a daily rest/recess window (optional)
   recessEnd?:   string;     // HH:MM — end of the rest/recess window (optional)
+  vipMovieIds?: string[];   // movies for the VIP-only slot — each plays once (optional)
+  vipStart?:    string;     // HH:MM — start of the VIP slot; its length follows the movies
   repeatPerDay: number;     // how many times each movie plays per day
   freeTickets:  boolean;    // mark every generated show as free
   createdBy:    string;
@@ -235,6 +244,10 @@ const buildPlaylist = (movieIds: string[], repeatPerDay: number): string[] => {
  * is allowed to run during it: a show that would overlap the window is pushed
  * to start once the recess ends.
  *
+ * A VIP slot (`vipMovieIds` from `vipStart`) works the same way, except the window
+ * is itself made of shows: each VIP movie is screened once, back to back, flagged
+ * `vipOnly` so they take no bookings, and the regular playlist is pushed past them.
+ *
  * This is a pure function — it performs no clash detection or writes.
  */
 export const generateAutoSchedule = (
@@ -247,25 +260,68 @@ export const generateAutoSchedule = (
   const dayEnd     = toMinutes(config.dayEnd);
   const hasRecess  = !!config.recessStart && !!config.recessEnd
     && toMinutes(config.recessStart) < toMinutes(config.recessEnd);
-  const recessStart = hasRecess ? toMinutes(config.recessStart!) : 0;
-  const recessEnd   = hasRecess ? toMinutes(config.recessEnd!)   : 0;
+
+  // The VIP block: every chosen movie, once each, back to back from `vipStart`.
+  const vipMovieIds = (config.vipMovieIds ?? []).filter(id => durationOf(id) > 0);
+  const hasVip      = vipMovieIds.length > 0 && !!config.vipStart;
+  const vipStart    = hasVip ? toMinutes(config.vipStart!) : 0;
+  const vipRuns: Array<{ movieId: string; start: number; end: number }> = [];
+  if (hasVip) {
+    let vipCursor = vipStart;
+    for (const movieId of vipMovieIds) {
+      const end = vipCursor + durationOf(movieId);
+      vipRuns.push({ movieId, start: vipCursor, end });
+      vipCursor = end + config.gapMinutes;
+    }
+  }
+  const vipEnd = vipRuns.length ? vipRuns[vipRuns.length - 1].end : 0;
+
+  // Windows the regular playlist may not run in. A show overlapping one is
+  // pushed to start when that window ends (the gap still applies afterwards).
+  const blocked: Array<{ start: number; end: number }> = [];
+  if (hasRecess) blocked.push({ start: toMinutes(config.recessStart!), end: toMinutes(config.recessEnd!) });
+  if (hasVip)    blocked.push({ start: vipStart, end: vipEnd + config.gapMinutes });
+
   const out: SchedulePayload[] = [];
 
   for (const date of config.dates) {
+    const day: SchedulePayload[] = [];
+
+    for (const run of vipRuns) {
+      day.push({
+        roomId:      config.roomId,
+        movieId:     run.movieId,
+        date,
+        startTime:   toHHMM(run.start),
+        endTime:     toHHMM(run.end),
+        freeTickets: true,     // VIPs are invited, never charged
+        snacksEnabled: false,  // and there is nothing to order against
+        vipOnly:     true,
+        status:      'upcoming',
+        createdBy:   config.createdBy,
+      });
+    }
+
     let cursor = dayStart;
     for (const movieId of playlist) {
       const duration = durationOf(movieId);
       if (duration <= 0) continue;
       let end = cursor + duration;
 
-      // Skip past the recess window if this show would overlap it.
-      if (hasRecess && cursor < recessEnd && end > recessStart) {
-        cursor = recessEnd;
+      // Skip past any blocked window this show would overlap. Looping, because
+      // clearing one window can drop the show straight into the next.
+      for (let guard = 0; guard < blocked.length; guard++) {
+        let hit: { start: number; end: number } | undefined;
+        for (const w of blocked) {
+          if (cursor < w.end && end > w.start) { hit = w; break; }
+        }
+        if (!hit) break;
+        cursor = hit.end;
         end    = cursor + duration;
       }
       if (end > dayEnd) break;               // playlist exhausted for the day
 
-      out.push({
+      day.push({
         roomId:      config.roomId,
         movieId,
         date,
@@ -279,6 +335,9 @@ export const generateAutoSchedule = (
 
       cursor = end + config.gapMinutes;      // gap before the next show
     }
+
+    day.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    out.push(...day);
   }
 
   return out;
