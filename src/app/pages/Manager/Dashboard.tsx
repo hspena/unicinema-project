@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Button, Modal } from '../../components/ui';
+import { Card, Badge, Button, Modal, StatCard, ReviewSummary } from '../../components/ui';
 import { useAuth }                    from '../../context/AuthContext';
 import { subscribeToRooms, subscribeToTemplates, templateSeatCount, Room, RoomTemplate, roomManagerIds } from '../../services/templateService';
 import { subscribeToMovies, subscribeToGenres, Movie, Genre } from '../../services/movieService';
@@ -7,7 +7,11 @@ import { subscribeToRoomSchedules, effectiveStatus, isBookable, todayString, for
 import { subscribeToRoomBookings, Booking } from '../../services/bookingService';
 import { subscribeToMovieReviews, getMovieAverageRating, Review } from '../../services/reviewService';
 import { Schedule } from '../../services/scheduleService';
-import { Star, Building2, Ticket, DollarSign, CheckCircle2, Calendar, IconGlyph } from '../../utils/icons';
+import { Star, Building2, Ticket, DollarSign, CheckCircle2, IconGlyph } from '../../utils/icons';
+import {
+  computeOccupancy, computeAttendance, seatsIn, revenueOf, isLive,
+  changeVs, startOfDay, DAY_MS, money, moneyShort, pctText,
+} from '../../utils/metrics';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,35 +61,18 @@ const RoomReviewsPanel = ({
     return () => unsubs.forEach(u => u());
   }, [roomMovieIds.join(','), movies.length]);
 
-  const filtered = allReviews.filter(r => {
-    const matchMovie  = filterMovie  === 'All' || r.movieId === filterMovie;
-    const matchRating = filterRating === 'All' || r.rating === parseInt(filterRating);
-    return matchMovie && matchRating;
-  });
+  // Movie filter drives the summary; the star filter only drills the list.
+  const scoped   = allReviews.filter(r => filterMovie === 'All' || r.movieId === filterMovie);
+  const filtered = scoped.filter(r => filterRating === 'All' || r.rating === parseInt(filterRating));
 
-  const avg = allReviews.length
-    ? (allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length).toFixed(1)
-    : '—';
+  const scopeName = filterMovie === 'All'
+    ? "this room's movies"
+    : movies.find(m => m.id === filterMovie)?.title;
 
   return (
     <div>
-      {/* Summary */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Total Reviews', value: allReviews.length },
-          { label: 'Avg Rating',    value: `${avg} / 5` },
-          { label: '5 Stars',       value: allReviews.filter(r => r.rating === 5).length },
-        ].map(s => (
-          <div key={s.label} style={{
-            flex: 1, minWidth: 90, padding: '10px 12px',
-            background: 'var(--navy)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)', textAlign: 'center',
-          }}>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.3rem', fontWeight: 700, color: 'var(--gold)' }}>{s.value}</div>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
+      {/* Summary — follows the movie filter */}
+      <ReviewSummary reviews={scoped} scope={scopeName} />
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
@@ -179,11 +166,22 @@ const CMDashboard = () => {
   const todaySchedules = schedules
     .filter(s => s.date === today)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  const todayBookings  = bookings.filter(b => b.showDate === today && b.status !== 'cancelled');
-  const todayRevenue   = todayBookings.reduce((s, b) => s + (b.totalPrice ?? 0), 0);
-  const totalTickets   = bookings.filter(b => b.status !== 'cancelled').length;
-  const checkedIn      = bookings.filter(b => b.status === 'checked-in').length;
+  const todayBookings  = bookings.filter(b => isLive(b) && b.showDate === today);
+  const todayRevenue   = revenueOf(todayBookings);
+  const totalTickets   = seatsIn(bookings.filter(isLive));
   const totalSeats     = myTemplate ? templateSeatCount(myTemplate) : 0;
+
+  // ── Today's operating picture ─────────────────────────────────────────────
+  // Raw counts ("12 bookings", "8 checked in") don't say whether that is a good
+  // day. Against capacity and against yesterday, they do.
+  const ticketsToday = seatsIn(todayBookings);
+  const yest         = new Date(startOfDay(new Date()).getTime() - DAY_MS);
+  const yestStr      = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+  const ticketTrend  = changeVs(ticketsToday, seatsIn(bookings.filter(b => isLive(b) && b.showDate === yestStr)));
+
+  const todayOccupancy = computeOccupancy(todaySchedules, bookings, () => totalSeats);
+  const todayAttend    = computeAttendance(todayBookings);
+  const perTicket      = ticketsToday > 0 ? todayRevenue / ticketsToday : 0;
 
   // Movies that have been shown / scheduled in this room
   const roomMovieIds   = Array.from(new Set(schedules.map(s => s.movieId)));
@@ -192,7 +190,7 @@ const CMDashboard = () => {
   // Movie booking breakdown
   const movieStats = roomMovies.map(m => ({
     movie: m,
-    count: bookings.filter(b => b.movieId === m.id && b.status !== 'cancelled').length,
+    count: seatsIn(bookings.filter(b => isLive(b) && b.movieId === m.id)),
   })).sort((a, b) => b.count - a.count);
   const maxCount = movieStats[0]?.count || 1;
 
@@ -255,34 +253,42 @@ const CMDashboard = () => {
 
       {/* Stats */}
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-card-icon"><Ticket size={20} /></div>
-          <div className="stat-card-value">{todayBookings.length}</div>
-          <div className="stat-card-label">Bookings Today</div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>{totalTickets} all time</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon"><DollarSign size={20} /></div>
-          <div className="stat-card-value" style={{ color: 'var(--gold)' }}>RM {todayRevenue.toFixed(0)}</div>
-          <div className="stat-card-label">Revenue Today</div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
-            RM {bookings.filter(b => b.status !== 'cancelled').reduce((s, b) => s + (b.totalPrice ?? 0), 0).toFixed(0)} total
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon"><CheckCircle2 size={20} /></div>
-          <div className="stat-card-value">{checkedIn}</div>
-          <div className="stat-card-label">Checked In</div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
-            {bookings.filter(b => b.status === 'confirmed').length} pending
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon"><Calendar size={20} /></div>
-          <div className="stat-card-value">{todaySchedules.length}</div>
-          <div className="stat-card-label">Shows Today</div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>{schedules.length} scheduled total</div>
-        </div>
+        <StatCard
+          icon={<Ticket size={20} />}
+          value={ticketsToday.toLocaleString()}
+          label="Tickets Today"
+          sub={`${totalTickets.toLocaleString()} all time`}
+          trend={ticketTrend?.label}
+          trendUp={ticketTrend?.up}
+          delay={1}
+        />
+        <StatCard
+          icon={<DollarSign size={20} />}
+          value={moneyShort(todayRevenue)}
+          label="Revenue Today"
+          sub={ticketsToday > 0 ? `${money(perTicket)} per ticket` : `${moneyShort(revenueOf(bookings))} all time`}
+          color="var(--gold)"
+          delay={2}
+        />
+        <StatCard
+          icon={<Building2 size={20} />}
+          value={todayOccupancy.capacity > 0 ? pctText(todayOccupancy.pct) : '—'}
+          label="Seats Filled Today"
+          sub={todayOccupancy.capacity > 0
+            ? `${todayOccupancy.sold} of ${todayOccupancy.capacity} across ${todayOccupancy.shows} shows`
+            : totalSeats === 0 ? 'No seat template assigned' : 'No bookable shows today'}
+          delay={3}
+        />
+        <StatCard
+          icon={<CheckCircle2 size={20} />}
+          value={todayAttend.expected > 0 ? pctText(todayAttend.pct) : '—'}
+          label="Turned Up Today"
+          sub={todayAttend.expected > 0
+            ? `${todayAttend.noShows} no-shows of ${todayAttend.expected} booked`
+            : 'No shows have started yet'}
+          subTone={todayAttend.expected > 0 && todayAttend.pct < 75 ? 'bad' : 'muted'}
+          delay={4}
+        />
       </div>
 
       <div className="two-col">
@@ -325,7 +331,7 @@ const CMDashboard = () => {
         </Card>
 
         {/* Movie stats */}
-        <Card title="Movie Bookings" actions={<Badge variant="muted">{roomMovies.length} movies</Badge>}>
+        <Card title="Tickets by Movie" actions={<Badge variant="muted">{roomMovies.length} movies</Badge>}>
           <div className="card-body">
             {movieStats.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px 0', fontSize: '0.83rem' }}>

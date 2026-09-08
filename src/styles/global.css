@@ -219,6 +219,7 @@ body {
 .stat-card-icon  { font-size: 1.5rem; margin-bottom: 12px; }
 .stat-card-value { font-family: var(--font-heading); font-size: 1.8rem; font-weight: 700; line-height: 1; }
 .stat-card-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-card-sub   { font-size: 0.72rem; margin-top: 6px; line-height: 1.4; }
 .stat-card-trend { font-size: 0.75rem; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
 .trend-up   { color: var(--success); }
 .trend-down { color: var(--danger); }
@@ -332,12 +333,101 @@ body {
 .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
 
 /* ─── Bar Chart ─────────────────────────────────────────────────────────────── */
-.bar-chart  { padding: 8px 0; }
-.bar-row    { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.bar-label  { font-size: 0.78rem; color: var(--text-secondary); width: 120px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bar-track  { flex: 1; height: 8px; background: var(--surface-raised); border-radius: 4px; overflow: hidden; }
-.bar-fill   { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
-.bar-value  { font-size: 0.76rem; color: var(--gold); width: 40px; text-align: right; }
+/* Shared by <BarChart /> and the hand-rolled bar rows on the dashboards, so the
+   three columns (label / track / value) line up identically everywhere. */
+.bar-chart  { padding: 4px 0; }
+.bar-row    {
+  display: grid;
+  grid-template-columns: minmax(72px, 148px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 8px;
+  margin: 0 -8px 2px;
+  border-radius: 8px;
+  transition: background var(--transition);
+}
+.bar-row:hover { background: var(--surface-raised); }
+.bar-label  { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color var(--transition); }
+.bar-row:hover .bar-label { color: var(--text-primary); }
+
+.bar-track  { position: relative; height: 10px; background: var(--surface-raised); border-radius: 5px; overflow: hidden; }
+/* Quarter gridlines give the eye a reference for comparing bar lengths. */
+.bar-track::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 25% 100%;
+  opacity: 0.6;
+}
+.bar-fill   {
+  position: relative;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-light), var(--gold));
+  border-radius: 5px;
+  transform-origin: left center;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  animation: bar-grow 0.7s cubic-bezier(0.4,0,0.2,1) both;
+}
+.bar-row:hover .bar-fill { box-shadow: 0 0 10px var(--gold-dim); }
+@keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.bar-value  { font-size: 0.78rem; font-weight: 600; color: var(--gold); text-align: right; min-width: 42px; font-variant-numeric: tabular-nums; }
+.bar-share  { margin-left: 6px; font-size: 0.68rem; font-weight: 400; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill { animation: none; transition: none; }
+}
+
+/* ─── Range filter pills ────────────────────────────────────────────────────── */
+.range-filter { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.range-pills  { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; }
+.range-pill   {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+}
+.range-pill:hover     { color: var(--text-primary); background: var(--surface-raised); }
+.range-pill.is-active { background: var(--gold); color: var(--navy); font-weight: 600; }
+.range-hint   { font-size: 0.74rem; color: var(--text-muted); }
+
+/* ─── Mini stat tiles (in-panel summaries) ──────────────────────────────────── */
+.mini-stat-row   { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.mini-stat       { flex: 1; min-width: 96px; padding: 11px 12px; background: var(--navy); border: 1px solid var(--border); border-radius: var(--radius); text-align: center; }
+.mini-stat-value { font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: var(--gold); line-height: 1.1; }
+.mini-stat-label { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; }
+.mini-stat-caption { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+
+/* ─── Line / trend chart ────────────────────────────────────────────────────── */
+.chart-wrap    { position: relative; }
+.chart-svg     { display: block; overflow: visible; }
+.chart-tooltip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.chart-tooltip-title { font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+.chart-tooltip-row   { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.chart-tooltip-row b { margin-left: auto; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.chart-swatch  { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+
+.chart-legend  { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-top: 8px; }
+.chart-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; color: var(--text-secondary); }
+.chart-legend-item small { color: var(--text-muted); }
 
 /* ─── Seat Map ──────────────────────────────────────────────────────────────── */
 .seat-map     { padding: 20px; }

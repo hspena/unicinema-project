@@ -16,6 +16,7 @@ import {
   computeMovieStats, sortMovieStats, computeTimeSeries,
 } from '../../utils/reviewAnalytics';
 import { generateRankingPdf } from '../../utils/reviewReport';
+import { changeVs, pctText } from '../../utils/metrics';
 
 // ─── Small helpers ──────────────────────────────────────────────────────────
 
@@ -31,6 +32,50 @@ const Stars = ({ value }: { value: number }) => {
 };
 
 const fmtRating = (s: MovieStats) => (s.reviewCount ? s.avgRating.toFixed(1) : '—');
+
+/**
+ * A movie card's watch count — always all-time, matching its all-time rating.
+ *
+ * The card is the catalogue view: it describes the title itself, so nothing on
+ * it moves when the range filter changes. The period figures live on the
+ * summary tiles at the top of the page, which is where the filter belongs.
+ */
+const CardWatches = ({ s }: { s: MovieStats }) => (
+  <div style={{
+    padding: '8px 6px', textAlign: 'center', background: 'var(--navy)',
+    border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+  }}>
+    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--gold)' }}>
+      {s.watchesTotal.toLocaleString()}
+    </div>
+    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      Total Watches
+    </div>
+  </div>
+);
+
+/**
+ * A movie card's rating — always all-time.
+ *
+ * A title's standing quality doesn't change because you picked a different
+ * month, and reviews are sparse enough that scoping this would blank most of
+ * the grid on short ranges. It stays labelled "all-time" because the Best Rated
+ * tile above *is* period-scoped, so the two must be told apart at a glance.
+ */
+const CardRating = ({ s }: { s: MovieStats }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0 10px', minHeight: 18 }}>
+    {s.reviewCount > 0 ? (
+      <>
+        <Stars value={s.avgRating} />
+        <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+          {fmtRating(s)} all-time · {s.reviewCount} review{s.reviewCount !== 1 ? 's' : ''}
+        </span>
+      </>
+    ) : (
+      <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Not yet rated</span>
+    )}
+  </div>
+);
 
 const WatchGrid = ({ s }: { s: MovieStats }) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
@@ -161,6 +206,10 @@ const MovieReviews = () => {
     return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
+  // This module reports all-time throughout — the tiles, the cards, the sorting
+  // and the filters all describe the catalogue as it stands. (The period filter
+  // lives on the two Analytics pages, where the question is "how did we trade
+  // this month"; here the question is "what is this title worth".)
   const stats = useMemo(
     () => computeMovieStats(movies, bookings, reviews, genres),
     [movies, bookings, reviews, genres]
@@ -179,7 +228,7 @@ const MovieReviews = () => {
       const matchGenre  = genreFilter === 'All' || s.genre === genreFilter;
       const matchRating = s.avgRating >= minRating;
       const matchYear   = yearFilter === 'All' || String(s.year) === yearFilter;
-      const matchWatch  = s.watchesTotal >= minWatches;
+      const matchWatch  = s.watchesTotal >= minWatches;   // all-time, as shown on the card
       return matchSearch && matchGenre && matchRating && matchYear && matchWatch;
     });
     return sortMovieStats(out, sortKey, sortDir);
@@ -192,11 +241,37 @@ const MovieReviews = () => {
   const detail = detailId ? stats.find(s => s.movieId === detailId) ?? null : null;
 
   // ── Summary ───────────────────────────────────────────────────────────────
-  const totalReviewers = new Set(reviews.map(r => r.userId)).size;
-  const totalReviews  = reviews.length;
-  const overallRating = totalReviews
-    ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
-    : 0;
+  // A catalogue-wide mean rating is close to meaningless — it averages away the
+  // only thing worth knowing (which titles are working and which are not) and
+  // barely moves as reviews arrive. These four answer questions instead:
+  // is viewership growing, what should we promote, what needs a look, and can
+  // we trust the ratings at all?
+  const summary = useMemo(() => {
+    const watched = stats.reduce((sum, s) => sum + s.watchesTotal, 0);
+
+    // A recency signal without a filter: the headline is all-time, and the
+    // last 7 days sit underneath it so a stalling week is still visible.
+    const week     = stats.reduce((sum, s) => sum + s.watches7d, 0);
+    const weekPrev = stats.reduce((sum, s) => sum + s.watchesPrev7d, 0);
+
+    // Only titles with a few reviews can be called best or worst — a single
+    // 5★ review is not a verdict.
+    const MIN_REVIEWS = 3;
+    const rated  = stats.filter(s => s.reviewCount >= MIN_REVIEWS);
+    const ranked = [...rated].sort((a, b) => b.avgRating - a.avgRating);
+    const best  = ranked[0] ?? null;
+    const worst = ranked.length > 1 ? ranked[ranked.length - 1] : null;
+
+    const reviewCount  = reviews.length;
+    const feedbackRate = watched > 0 ? (reviewCount / watched) * 100 : 0;
+
+    return {
+      watched, week,
+      watchTrend: changeVs(week, weekPrev),
+      best, worst, minReviews: MIN_REVIEWS,
+      reviewCount, feedbackRate,
+    };
+  }, [stats, reviews]);
 
   return (
     <div className="page fade-in">
@@ -208,12 +283,45 @@ const MovieReviews = () => {
         </p>
       </div>
 
-      {/* Summary */}
+      {/* Summary — all-time, matching the cards below */}
       <div className="stats-grid">
-        <StatCard icon={<Film size={22} />}       value={movies.length}             label="Movies"        delay={1} />
-        <StatCard icon={<Users size={22} />}      value={totalReviewers.toLocaleString()} label="Total Moviegoers" delay={2} />
-        <StatCard icon={<Star size={22} />}       value={totalReviews ? overallRating.toFixed(2) : '—'} label="Avg Rating" delay={3} />
-        <StatCard icon={<BarChart3 size={22} />}  value={totalReviews}              label="Total Reviews" delay={4} />
+        <StatCard
+          icon={<Users size={22} />}
+          value={summary.watched.toLocaleString()}
+          label="Total Watches"
+          sub={`${summary.week.toLocaleString()} in the last 7 days`}
+          trend={summary.watchTrend?.label}
+          trendUp={summary.watchTrend?.up}
+          delay={1}
+        />
+        <StatCard
+          icon={<ArrowUp size={22} />}
+          value={summary.best ? summary.best.avgRating.toFixed(1) : '—'}
+          label="Best Rated"
+          sub={summary.best
+            ? `${summary.best.title} · ${summary.best.reviewCount} reviews`
+            : `No title has ${summary.minReviews}+ reviews yet`}
+          subTone={summary.best ? 'good' : 'muted'}
+          color="var(--gold)"
+          delay={2}
+        />
+        <StatCard
+          icon={<Star size={22} />}
+          value={summary.worst ? summary.worst.avgRating.toFixed(1) : '—'}
+          label="Needs Attention"
+          sub={summary.worst
+            ? `${summary.worst.title} · ${summary.worst.reviewCount} reviews`
+            : 'Not enough rated titles to compare'}
+          subTone={summary.worst ? 'bad' : 'muted'}
+          delay={3}
+        />
+        <StatCard
+          icon={<BarChart3 size={22} />}
+          value={summary.watched ? pctText(summary.feedbackRate) : '—'}
+          label="Feedback Rate"
+          sub={`${summary.reviewCount.toLocaleString()} reviews from ${summary.watched.toLocaleString()} watches`}
+          delay={4}
+        />
       </div>
 
       {/* Toolbar */}
@@ -327,13 +435,8 @@ const MovieReviews = () => {
                 </div>
                 <div className="movie-info">
                   <div className="movie-title" style={{ cursor: 'pointer' }} onClick={() => setDetailId(s.movieId)}>{s.title}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0 10px' }}>
-                    <Stars value={s.avgRating} />
-                    <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                      {fmtRating(s)} · {s.reviewCount} review{s.reviewCount !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <WatchGrid s={s} />
+                  <CardRating s={s} />
+                  <CardWatches s={s} />
                 </div>
               </div>
             );
@@ -505,9 +608,11 @@ const CompareBody = ({ stats }: { stats: MovieStats[] }) => {
       <div style={{ marginBottom: 18 }}><BarChart data={watchData} /></div>
 
       <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-        Average Rating
+        Average Rating (out of 5)
       </div>
-      <div style={{ marginBottom: 18 }}><BarChart data={ratingData} /></div>
+      <div style={{ marginBottom: 18 }}>
+        <BarChart data={ratingData} max={5} showShare={false} format={(n) => n.toFixed(1)} />
+      </div>
 
       <div className="table-wrap">
         <table className="data-table">

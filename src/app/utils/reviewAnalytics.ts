@@ -1,6 +1,7 @@
 import { Movie, Genre } from '../services/movieService';
 import { Booking } from '../services/bookingService';
 import { Review } from '../services/reviewService';
+import { Bounds, showStart } from './metrics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,11 +15,21 @@ export interface MovieStats {
   price:        number;
   watchesDay:   number;       // people who watched today
   watches7d:    number;       // …in the last 7 days
+  watchesPrev7d: number;      // …in the 7 days before that (baseline for the trend)
   watches30d:   number;       // …in the last 30 days (month)
   watches365d:  number;       // …in the last 365 days (year)
   watchesTotal: number;       // …all-time
-  avgRating:    number;       // 0 when no reviews
+  avgRating:    number;       // 0 when no reviews (all-time — a title's standing rating)
   reviewCount:  number;
+
+  // Scoped to the selected reporting period (equal to the all-time figures when
+  // no period is applied). Watches are a flow, so they belong to a period;
+  // avgRatingRange covers only reviews *written* in it, which is sparse by
+  // nature — reviewCountRange says how much weight it can carry.
+  watchesRange:     number;
+  watchesPrevRange: number;   // the equivalent preceding period, for the trend
+  avgRatingRange:   number;
+  reviewCountRange: number;
 }
 
 export type SortKey = 'rating' | 'watches' | 'title';
@@ -61,22 +72,38 @@ export const computeMovieStats = (
   reviews:  Review[],
   genres:   Genre[],
   now:      Date = new Date(),
+  bounds:   Bounds | null = null,
 ): MovieStats[] => {
   const genreName = (id: string) => genres.find(g => g.id === id)?.name ?? '—';
 
   const watched = bookings.filter(b => b.status === 'checked-in');
 
+  // Period membership. With no bounds every record counts, so the range fields
+  // simply mirror the all-time ones.
+  const inSpan = (t: number, from: Date | null, to: Date | null) =>
+    (!from || t >= from.getTime()) && (!to || t < to.getTime());
+  const inRange     = (t: number) => !bounds || inSpan(t, bounds.from, bounds.to);
+  const inPrevRange = (t: number) =>
+    !!bounds && !!bounds.prevFrom && inSpan(t, bounds.prevFrom, bounds.prevTo);
+
   return movies.map(m => {
     const movieWatched = watched.filter(b => b.movieId === m.id);
-    let watchesDay = 0, watches7d = 0, watches30d = 0, watches365d = 0, watchesTotal = 0;
+    let watchesDay = 0, watches7d = 0, watchesPrev7d = 0, watches30d = 0, watches365d = 0, watchesTotal = 0;
+    let watchesRange = 0, watchesPrevRange = 0;
 
     for (const b of movieWatched) {
       const seats = b.seats?.length ?? 0;
       watchesTotal += seats;
+
+      const t = showStart(b).getTime();
+      if (inRange(t))     watchesRange     += seats;
+      if (inPrevRange(t)) watchesPrevRange += seats;
+
       const d = daysAgo(b.showDate, now);
       if (d < 0) continue;            // future-dated shows don't count as watched yet
       if (d === 0) watchesDay  += seats;
       if (d < 7)   watches7d   += seats;
+      if (d >= 7 && d < 14) watchesPrev7d += seats;
       if (d < 30)  watches30d  += seats;
       if (d < 365) watches365d += seats;
     }
@@ -87,6 +114,12 @@ export const computeMovieStats = (
       ? movieReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
       : 0;
 
+    const rangeReviews    = movieReviews.filter(r => inRange(new Date(r.createdAt).getTime()));
+    const reviewCountRange = rangeReviews.length;
+    const avgRatingRange   = reviewCountRange
+      ? rangeReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCountRange
+      : 0;
+
     return {
       movieId: m.id,
       title:   m.title,
@@ -95,8 +128,9 @@ export const computeMovieStats = (
       color:   m.color,
       year:    m.year,
       price:   m.price ?? 10,
-      watchesDay, watches7d, watches30d, watches365d, watchesTotal,
+      watchesDay, watches7d, watchesPrev7d, watches30d, watches365d, watchesTotal,
       avgRating, reviewCount,
+      watchesRange, watchesPrevRange, avgRatingRange, reviewCountRange,
     };
   });
 };
@@ -230,6 +264,8 @@ export const sortMovieStats = (
     let cmp: number;
     if (key === 'title')   cmp = a.title.localeCompare(b.title);
     else if (key === 'rating') cmp = a.avgRating - b.avgRating;
+    // All-time, matching the figure shown on each movie card — ranking by a
+    // period the card doesn't display would order the grid by an invisible number.
     else /* watches */     cmp = a.watchesTotal - b.watchesTotal;
     // Stable tiebreaker on title so ordering is deterministic.
     if (cmp === 0) cmp = a.title.localeCompare(b.title) * (dir === 'asc' ? 1 : -1);
