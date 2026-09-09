@@ -5,7 +5,8 @@ import { Room, RoomTemplate, subscribeToTemplates } from '../services/templateSe
 import { Movie, subscribeToMovies, Genre, subscribeToGenres } from '../services/movieService';
 import { Schedule, subscribeToRoomSchedules, effectiveStatus, isBookable, formatDate, todayString, snacksAllowed } from '../services/scheduleService';
 import { createBooking, getBookedSeats, BookingSnack } from '../services/bookingService';
-import SnackSelector, { SnackSummary, snacksTotal } from './SnackSelector';
+import SnackSelector, { SnackSummary } from './SnackSelector';
+import { snacksTotal } from '../services/bookingService';
 import { createNotification } from '../services/notificationService';
 import { getNotificationPrefs } from '../utils/preferences';
 import { subscribeToUsers } from '../services/userService';

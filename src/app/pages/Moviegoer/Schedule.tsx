@@ -10,8 +10,8 @@ import {
   subscribeToAllSchedules,
   formatDate, todayString, snacksAllowed, effectiveStatus,
 } from '../../services/scheduleService';
-import { createBooking, getBookedSeats, BookingSnack } from '../../services/bookingService';
-import SnackSelector, { SnackSummary, snacksTotal } from '../../components/SnackSelector';
+import { createBooking, getBookedSeats, BookingSnack, snacksTotal } from '../../services/bookingService';
+import SnackSelector, { SnackSummary } from '../../components/SnackSelector';
 import { getUserById } from '../../services/userService';
 import { createNotification } from '../../services/notificationService';
 import { getNotificationPrefs } from '../../utils/preferences';

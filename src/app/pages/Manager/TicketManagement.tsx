@@ -6,9 +6,9 @@ import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Schedule, subscribeToRoomSchedules, formatDate } from '../../services/scheduleService';
 import {
   Booking, subscribeToRoomBookings,
-  checkInBooking, cancelBooking, findBookingByCode,
+  checkInBooking, cancelBooking, findBookingByCode, snacksCount,
 } from '../../services/bookingService';
-import { SnackSummary, snacksCount } from '../../components/SnackSelector';
+import { SnackSummary } from '../../components/SnackSelector';
 import { CheckCircle2, Ticket, Hourglass, XCircle, Search, Check, ScanLine, Popcorn } from '../../utils/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

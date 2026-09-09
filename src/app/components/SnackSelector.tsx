@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { subscribeToSnacks, Snack } from '../services/snackService';
-import { BookingSnack } from '../services/bookingService';
+import { BookingSnack, snacksTotal } from '../services/bookingService';
 import { IconGlyph, Plus, Minus, Popcorn } from '../utils/icons';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-export const snacksTotal = (snacks: BookingSnack[] = []): number =>
-  snacks.reduce((sum, s) => sum + s.price * s.qty, 0);
-
-export const snacksCount = (snacks: BookingSnack[] = []): number =>
-  snacks.reduce((sum, s) => sum + s.qty, 0);
 
 // ─── Interactive selector ─────────────────────────────────────────────────────
 // Controlled component. Prompts the patron whether they want snacks; if yes,

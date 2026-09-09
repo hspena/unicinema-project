@@ -17,6 +17,14 @@ export interface BookingSnack {
   qty:     number;
 }
 
+/** What a snack order is worth, in RM. */
+export const snacksTotal = (snacks: BookingSnack[] = []): number =>
+  snacks.reduce((sum, s) => sum + s.price * s.qty, 0);
+
+/** How many individual items it holds — three drinks and a popcorn is four. */
+export const snacksCount = (snacks: BookingSnack[] = []): number =>
+  snacks.reduce((sum, s) => sum + s.qty, 0);
+
 export interface Booking {
   id:          string;
   ticketCode:  string;

@@ -1,4 +1,4 @@
-import { Booking } from '../services/bookingService';
+import { Booking, snacksTotal, snacksCount } from '../services/bookingService';
 import { Schedule, isVipShow } from '../services/scheduleService';
 
 /**
@@ -20,9 +20,24 @@ export const isLive = (b: Booking) => b.status !== 'cancelled';
 export const seatsIn = (bookings: Booking[]): number =>
   bookings.reduce((sum, b) => sum + (b.seats?.length ?? 0), 0);
 
-/** Money actually taken: cancelled and comped shows earn nothing. */
+/** Money taken at the counter for snacks, whatever the tickets cost. */
+export const snackRevenueOf = (bookings: Booking[]): number =>
+  bookings.filter(isLive).reduce((sum, b) => sum + snacksTotal(b.snacks), 0);
+
+/** Individual snack items sold — three drinks and a popcorn is four. */
+export const snackItemsIn = (bookings: Booking[]): number =>
+  bookings.filter(isLive).reduce((sum, b) => sum + snacksCount(b.snacks), 0);
+
+/**
+ * Money actually taken: cancelled bookings earn nothing.
+ *
+ * `isFree` marks a comped *ticket*, not a comped counter — a free screening
+ * that sells snacks still takes real money, so its snack lines are counted
+ * even though the seats are worth nothing.
+ */
 export const revenueOf = (bookings: Booking[]): number =>
-  bookings.filter(isLive).reduce((sum, b) => sum + (b.isFree ? 0 : b.totalPrice ?? 0), 0);
+  bookings.filter(isLive)
+    .reduce((sum, b) => sum + (b.isFree ? snacksTotal(b.snacks) : b.totalPrice ?? 0), 0);
 
 /** When a booking's show starts. */
 export const showStart = (b: { showDate: string; showTime?: string }): Date =>

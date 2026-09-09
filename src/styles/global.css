@@ -76,6 +76,7 @@ body {
 .fade-up-2 { animation: fadeUp 0.4s 0.10s ease both; }
 .fade-up-3 { animation: fadeUp 0.4s 0.15s ease both; }
 .fade-up-4 { animation: fadeUp 0.4s 0.20s ease both; }
+.fade-up-5 { animation: fadeUp 0.4s 0.25s ease both; }
 .fade-in   { animation: fadeIn 0.3s ease both; }
 
 /* ─── Layout ────────────────────────────────────────────────────────────────── */

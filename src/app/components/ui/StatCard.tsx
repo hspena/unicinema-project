@@ -12,7 +12,7 @@ interface StatCardProps {
   trend?:   string;
   trendUp?: boolean;
   color?:   string;
-  delay?:   number; // 1–4 for staggered animation
+  delay?:   number; // 1–5 for staggered animation
 }
 
 const TONE: Record<string, string> = {

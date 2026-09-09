@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StatCard, Card, Badge, BarChart, RangeFilter } from '../../components/ui';
-import { Building2, Ticket, DollarSign, CheckCircle2 } from '../../utils/icons';
+import { Building2, Ticket, DollarSign, CheckCircle2, Popcorn } from '../../utils/icons';
 import { Movie, Genre, subscribeToMovies, subscribeToGenres } from '../../services/movieService';
 import {
   Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount,
@@ -9,6 +9,7 @@ import { Schedule, subscribeToAllSchedules } from '../../services/scheduleServic
 import { Booking, subscribeToAllBookings } from '../../services/bookingService';
 import {
   TimeRange, computeOccupancy, computeAttendance, seatsIn, revenueOf,
+  snackRevenueOf, snackItemsIn,
   changeVs, money, pctText, rangeBounds, bookingsInRange, schedulesInRange,
 } from '../../utils/metrics';
 
@@ -61,6 +62,10 @@ const Analytics = () => {
   const ticketTrend = changeVs(totalTickets, seatsIn(prevScoped));
   const perTicket   = totalTickets > 0 ? totalRevenue / totalTickets : 0;
   const activeRooms = rooms.filter(r => r.status === 'active').length;
+
+  const snackRevenue = snackRevenueOf(scoped);
+  const snackItems   = snackItemsIn(scoped);
+  const snackShare   = totalRevenue > 0 ? (snackRevenue / totalRevenue) * 100 : 0;
 
   const fmtDate = (d: Date) => d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
   const rangeHint = bounds.from && bounds.to
@@ -146,6 +151,15 @@ const Analytics = () => {
           label="Revenue"
           sub={totalTickets > 0 ? `${money(perTicket)} per ticket` : nothingYet}
           delay={4}
+        />
+        <StatCard
+          icon={<Popcorn size={22} />}
+          value={money(snackRevenue)}
+          label="Snack Revenue"
+          sub={snackItems > 0
+            ? `${snackItems.toLocaleString()} ${snackItems === 1 ? 'item' : 'items'} · ${pctText(snackShare)} of takings`
+            : `No snacks sold ${range === 'all' ? 'yet' : `in ${bounds.label.toLowerCase()}`}.`}
+          delay={5}
         />
       </div>
 
