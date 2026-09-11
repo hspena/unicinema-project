@@ -19,6 +19,7 @@ import {
 } from './bookingService';
 import { createNotification } from './notificationService';
 import { sendEmails, isEmailConfigured, EmailMessage } from './emailService';
+import { getUserById } from './userService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,8 +150,13 @@ export const cancelRoomDay = async (
           `${sorted.length === 1 ? 'has' : 'have'} been cancelled. ${refundLine(sorted)}`,
       });
 
+      // Bookings made before userEmail was stored (and any left blank by the
+      // walk-up counter) carry no address — fall back to the account record.
+      const toEmail = sorted[0].userEmail?.trim()
+        || (userId ? (await getUserById(userId).catch(() => null))?.email ?? '' : '');
+
       emails.push({
-        toEmail: sorted[0].userEmail,
+        toEmail,
         toName:  sorted[0].userName,
         subject: `Cancelled: your ${prettyDate} booking at ${roomName}`,
         heading: 'Your show has been cancelled',

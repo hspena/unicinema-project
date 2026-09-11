@@ -126,7 +126,7 @@ const Browse = () => {
   const [reviewSaving,  setReviewSaving]  = useState(false);
   const [reviewError,   setReviewError]   = useState('');
 
-  const [userProfile, setUserProfile] = useState<{ displayName: string; username: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ displayName: string; username: string; email: string } | null>(null);
 
   useEffect(() => {
     const u1 = subscribeToMovies(setMovies);
@@ -143,6 +143,7 @@ const Browse = () => {
       if (u) setUserProfile({
         displayName: (u as any).displayName || u.name,
         username:    (u as any).username    || u.name,
+        email:       u.email ?? '',
       });
     });
   }, [uid]);
@@ -209,7 +210,7 @@ const Browse = () => {
         showTime:   bookingSchedule.startTime,
         userId:     uid,
         userName:   userProfile.displayName,
-        userEmail:  '',
+        userEmail:  userProfile.email,
         seats:      chosenSeats,
         totalPrice: isFree ? 0 : chosenSeats.length * seatPrice,
         isFree,

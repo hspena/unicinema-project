@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth }  from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Toggle }   from '../components/ui';
-import { registerMoviegoer, isUsernameAvailable } from '../services/userService';
+import { isUsernameAvailable } from '../services/userService';
 import { Film, AlertTriangle, X, Check, Hourglass, CheckCircle2, ArrowRight, ArrowLeft, MailCheck } from '../utils/icons';
 
 type AuthMode = 'login' | 'register' | 'forgot';
@@ -70,7 +70,7 @@ export const UserDisplay = ({
 
 // ─── Main Login Page ──────────────────────────────────────────────────────────
 const Login = () => {
-  const { login, loginWithGoogle, requestPasswordReset, isLoading, error, clearError } = useAuth();
+  const { login, loginWithGoogle, register, requestPasswordReset, isLoading, error, clearError } = useAuth();
   const { darkMode, setDarkMode }               = useTheme();
 
   const [mode, setMode] = useState<AuthMode>('login');
@@ -152,7 +152,7 @@ const Login = () => {
 
     setRegLoading(true);
     try {
-      await registerMoviegoer({
+      await register({
         name:        regDisplayName,
         displayName: regDisplayName,
         username:    regUsername,

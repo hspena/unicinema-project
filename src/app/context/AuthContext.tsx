@@ -13,9 +13,18 @@ import {
   signInWithGoogle,
   completeGoogleRedirect,
   sendPasswordReset,
+  registerMoviegoer,
 } from '../services/userService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export interface RegisterPayload {
+  name:        string;
+  displayName: string;
+  username:    string;
+  email:       string;
+  password:    string;
+}
+
 interface AuthContextValue {
   isLoggedIn:  boolean;
   isLoading:   boolean;
@@ -26,6 +35,7 @@ interface AuthContextValue {
   error:       string | null;
   login:       (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  register:    (payload: RegisterPayload) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   logout:      () => Promise<void>;
   setView:     (view: string) => void;
@@ -43,6 +53,7 @@ const AuthContext = createContext<AuthContextValue>({
   error:       null,
   login:       async () => {},
   loginWithGoogle: async () => {},
+  register:    async () => {},
   requestPasswordReset: async () => {},
   logout:      async () => {},
   setView:     () => {},
@@ -64,7 +75,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error,       setError]       = useState<string | null>(null);
   const [actualRole, setActualRole] = useState<UserRole>('Moviegoer');
 
-  // While a new Google user is being provisioned, the profile doesn't exist yet.
+  // While a new user is being provisioned (Google or self-registration), the
+  // profile doesn't exist yet.
   // Suppress the listener's orphan-cleanup logout during that window so the
   // provisioning writes aren't rejected (auth would otherwise be cleared).
   const provisioningRef = useRef(false);
@@ -172,6 +184,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // ── Self-registration ──────────────────────────────────────────────────────
+  // Creating the Auth account signs the new user in before their profile row
+  // exists, so the listener would see a role-less user and log them straight
+  // back out — cancelling the auth the profile writes still need. Hold the
+  // provisioning guard until registerMoviegoer has finished writing.
+  // Throws on failure; the caller owns its own loading/error UI.
+  const register = async (payload: RegisterPayload) => {
+    provisioningRef.current = true;
+    try {
+      await registerMoviegoer(payload);
+    } finally {
+      provisioningRef.current = false;
+    }
+  };
+
   // ── Password reset email ───────────────────────────────────────────────────
   // Throws a display-ready message; the caller owns its own loading/error UI,
   // so this deliberately leaves the shared isLoading/error state untouched.
@@ -212,7 +239,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         isLoggedIn, isLoading, role, actualRole, uid,
         currentView, error,
-        login, loginWithGoogle, requestPasswordReset,
+        login, loginWithGoogle, register, requestPasswordReset,
         logout, setView, switchRole, clearError,
       }}
     >

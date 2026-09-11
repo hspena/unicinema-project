@@ -100,7 +100,7 @@ const SchedulePage = () => {
   const [bucket, setBucket] = useState<TimeBucket>('today');
 
   // ── Booking flow state ──
-  const [userProfile,      setUserProfile]      = useState<{ displayName: string; username: string } | null>(null);
+  const [userProfile,      setUserProfile]      = useState<{ displayName: string; username: string; email: string } | null>(null);
   const [bookingSchedule,  setBookingSchedule]  = useState<ScheduleItem | null>(null);
   const [bookedSeats,      setBookedSeats]      = useState<string[]>([]);
   const [chosenSeats,      setChosenSeats]      = useState<string[]>([]);
@@ -129,6 +129,7 @@ const SchedulePage = () => {
       if (u) setUserProfile({
         displayName: (u as any).displayName || u.name,
         username:    (u as any).username    || u.name,
+        email:       u.email ?? '',
       });
     });
   }, [uid]);
@@ -176,7 +177,7 @@ const SchedulePage = () => {
         showTime:   bookingSchedule.startTime,
         userId:     uid,
         userName:   userProfile.displayName,
-        userEmail:  '',
+        userEmail:  userProfile.email,
         seats:      chosenSeats,
         ...(chosenSnacks.length ? { snacks: chosenSnacks } : {}),
         totalPrice: grandTotal,
