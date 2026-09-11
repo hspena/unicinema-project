@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = "build"
+
+[build.environment]
+  # CRA turns lint warnings into errors when CI=true, which Netlify sets by default.
+  CI = "false"
+  NODE_VERSION = "20"
+
+# Serve index.html for any unknown path so deep links / refreshes work.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
