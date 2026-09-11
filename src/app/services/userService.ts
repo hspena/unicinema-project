@@ -14,7 +14,7 @@ import {
 import { initializeApp, deleteApp }            from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import {
-  ref, set, get, update, remove, onValue, off, query, orderByChild, equalTo,
+  ref, set, get, update, remove, onValue, query, orderByChild, equalTo,
 } from 'firebase/database';
 import { auth, db } from '../config/firebase';
 import { User, UserRole, UserStatus } from '../types';
@@ -320,13 +320,11 @@ export const changePassword = async (currentPassword: string, newPassword: strin
 export const subscribeToUsers = (
   callback: (users: User[]) => void
 ): (() => void) => {
-  const dbRef = usersRef();
-  onValue(dbRef, (snap) => {
+  return onValue(usersRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     const users: User[] = Object.entries(snap.val()).map(
       ([id, data]: [string, any]) => ({ id, ...data })
     );
     callback(users);
   });
-  return () => off(dbRef);
 };

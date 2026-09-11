@@ -1,5 +1,5 @@
 import {
-  ref, set, get, update, remove, push, onValue, off,
+  ref, set, get, update, remove, push, onValue,
 } from 'firebase/database';
 import { db } from '../config/firebase';
 
@@ -77,12 +77,10 @@ export const deleteGenre = async (id: string): Promise<void> => {
 export const subscribeToGenres = (
   callback: (genres: Genre[]) => void
 ): (() => void) => {
-  const dbRef = genresRef();
-  onValue(dbRef, (snap) => {
+  return onValue(genresRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(Object.values(snap.val()) as Genre[]);
   });
-  return () => off(dbRef);
 };
 
 // ─── Movie CRUD ───────────────────────────────────────────────────────────────
@@ -108,12 +106,10 @@ export const deleteMovie = async (id: string): Promise<void> => {
 export const subscribeToMovies = (
   callback: (movies: Movie[]) => void
 ): (() => void) => {
-  const dbRef = moviesRef();
-  onValue(dbRef, (snap) => {
+  return onValue(moviesRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(Object.values(snap.val()) as Movie[]);
   });
-  return () => off(dbRef);
 };
 
 // ─── Seed default genres (call once on first setup) ───────────────────────────

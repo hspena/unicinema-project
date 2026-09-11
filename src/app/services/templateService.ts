@@ -1,5 +1,5 @@
 import {
-  ref, set, get, update, remove, push, onValue, off,
+  ref, set, get, update, remove, push, onValue,
 } from 'firebase/database';
 import { db } from '../config/firebase';
 
@@ -92,12 +92,12 @@ export const getAllTemplates = async (): Promise<RoomTemplate[]> => {
 export const subscribeToTemplates = (
   callback: (templates: RoomTemplate[]) => void
 ): (() => void) => {
-  const dbRef = templatesRef();
-  onValue(dbRef, (snap) => {
+  // Return onValue's own unsubscribe, not off(dbRef): off() detaches *every*
+  // listener on the path, so one component unmounting would blind the others.
+  return onValue(templatesRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(Object.values(snap.val()) as RoomTemplate[]);
   });
-  return () => off(dbRef);
 };
 
 export const deleteTemplate = async (id: string): Promise<void> => {
@@ -124,12 +124,10 @@ export const getAllRooms = async (): Promise<Room[]> => {
 export const subscribeToRooms = (
   callback: (rooms: Room[]) => void
 ): (() => void) => {
-  const dbRef = roomsRef();
-  onValue(dbRef, (snap) => {
+  return onValue(roomsRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(Object.values(snap.val()) as Room[]);
   });
-  return () => off(dbRef);
 };
 
 export const updateRoom = async (

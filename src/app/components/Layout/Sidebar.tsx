@@ -5,6 +5,7 @@ import { NAV_CONFIG, ROLE_ICONS } from '../../utils/helpers';
 import { SelectField }   from '../ui';
 import { getUserById }   from '../../services/userService';
 import { subscribeToUserBookings } from '../../services/bookingService';
+import { Room, subscribeToRooms }  from '../../services/templateService';
 import { Film, X, Settings, Undo2 } from '../../utils/icons';
 
 interface SidebarProps {
@@ -13,7 +14,10 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-  const { role, actualRole, uid, currentView, setView, switchRole, logout } = useAuth();
+  const {
+    role, actualRole, uid, currentView, setView, switchRole,
+    viewRoomId, setViewRoomId, logout,
+  } = useAuth();
   const navSections = NAV_CONFIG[role] ?? [];
 
   const [userProfile, setUserProfile] = useState<{
@@ -21,6 +25,23 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     username:    string;
   } | null>(null);
   const [upcomingTickets, setUpcomingTickets] = useState(0);
+  const [rooms, setRooms] = useState<Room[]>([]);
+
+  // Rooms feed the Admin's "viewing as manager of" picker; nobody else needs them.
+  const viewingAsManager = actualRole === 'Admin' && role === 'Cinema Room';
+  useEffect(() => {
+    if (!viewingAsManager) return;
+    return subscribeToRooms(setRooms);
+  }, [viewingAsManager]);
+
+  // Land on a concrete room so the picker never shows a blank while the manager
+  // pages are already defaulting to the first room.
+  useEffect(() => {
+    if (!viewingAsManager) return;
+    if (rooms.length === 0) return;
+    if (rooms.some(r => r.id === viewRoomId)) return;
+    setViewRoomId(rooms[0].id);
+  }, [viewingAsManager, rooms, viewRoomId, setViewRoomId]);
 
   // Fetch the logged-in user's real profile from Firebase
   useEffect(() => {
@@ -74,6 +95,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {actualRole === 'Admin' && (
         <div className="sidebar-role-switcher">
           <SelectField
+            label={viewingAsManager ? 'View as' : undefined}
             value={role}
             onChange={e => switchRole(e.target.value as UserRole)}
             options={[
@@ -83,6 +105,23 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               { value: 'Moviegoer',   label: 'Moviegoer'           },
             ]}
           />
+
+          {/* Which room the manager views are scoped to */}
+          {viewingAsManager && (
+            <SelectField
+              label="Room"
+              value={viewRoomId ?? ''}
+              onChange={e => setViewRoomId(e.target.value || null)}
+              options={
+                rooms.length
+                  ? rooms.map(r => ({
+                      value: r.id,
+                      label: r.status === 'active' ? r.name : `${r.name} (inactive)`,
+                    }))
+                  : [{ value: '', label: 'No rooms available' }]
+              }
+            />
+          )}
         </div>
       )}
 

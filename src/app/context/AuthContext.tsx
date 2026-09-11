@@ -33,6 +33,8 @@ interface AuthContextValue {
   uid:         string | null;
   currentView: string;
   error:       string | null;
+  /** Room an Admin has picked while viewing as a Cinema Room Manager. */
+  viewRoomId:  string | null;
   login:       (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   register:    (payload: RegisterPayload) => Promise<void>;
@@ -40,6 +42,7 @@ interface AuthContextValue {
   logout:      () => Promise<void>;
   setView:     (view: string) => void;
   switchRole:  (role: UserRole) => void;
+  setViewRoomId: (roomId: string | null) => void;
   clearError:  () => void;
 }
 
@@ -51,6 +54,7 @@ const AuthContext = createContext<AuthContextValue>({
   uid:         null,
   currentView: 'browse',
   error:       null,
+  viewRoomId:  null,
   login:       async () => {},
   loginWithGoogle: async () => {},
   register:    async () => {},
@@ -58,6 +62,7 @@ const AuthContext = createContext<AuthContextValue>({
   logout:      async () => {},
   setView:     () => {},
   switchRole:  () => {},
+  setViewRoomId: () => {},
   clearError:  () => {},
 });
 
@@ -74,6 +79,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentView, setCurrentView] = useState('browse');
   const [error,       setError]       = useState<string | null>(null);
   const [actualRole, setActualRole] = useState<UserRole>('Moviegoer');
+  // Admin-only: which room the Cinema Room Manager views are scoped to.
+  // null means "fall back to the first room available".
+  const [viewRoomId,  setViewRoomId]  = useState<string | null>(null);
 
   // While a new user is being provisioned (Google or self-registration), the
   // profile doesn't exist yet.
@@ -225,6 +233,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUid(null);
     setRole('Moviegoer');
     setCurrentView('browse');
+    setViewRoomId(null);
   };
 
   const setView    = (view: string)      => setCurrentView(view);
@@ -238,9 +247,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         isLoggedIn, isLoading, role, actualRole, uid,
-        currentView, error,
+        currentView, error, viewRoomId,
         login, loginWithGoogle, register, requestPasswordReset,
-        logout, setView, switchRole, clearError,
+        logout, setView, switchRole, setViewRoomId, clearError,
       }}
     >
       {children}

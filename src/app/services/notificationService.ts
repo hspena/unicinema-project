@@ -1,5 +1,5 @@
 import {
-  ref, push, set, get, update, remove, onValue, off,
+  ref, push, set, get, update, remove, onValue,
 } from 'firebase/database';
 import { db } from '../config/firebase';
 import { getAllUsers } from './userService';
@@ -103,13 +103,11 @@ export const subscribeToUserNotifications = (
   uid: string,
   callback: (notifications: AppNotification[]) => void,
 ): (() => void) => {
-  const dbRef = userNotifsRef(uid);
-  onValue(dbRef, (snap) => {
+  return onValue(userNotifsRef(uid), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     const list = (Object.values(snap.val()) as AppNotification[]).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
     callback(list);
   });
-  return () => off(dbRef);
 };

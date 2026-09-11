@@ -1,5 +1,5 @@
 import {
-  ref, set, get, update, remove, push, onValue, off,
+  ref, set, get, update, remove, push, onValue,
 } from 'firebase/database';
 import { db } from '../config/firebase';
 
@@ -49,8 +49,7 @@ export const subscribeToMovieReviews = (
   movieId: string,
   callback: (reviews: Review[]) => void
 ): (() => void) => {
-  const dbRef = reviewsRef();
-  onValue(dbRef, (snap) => {
+  return onValue(reviewsRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     const all = Object.values(snap.val()) as Review[];
     callback(
@@ -59,22 +58,19 @@ export const subscribeToMovieReviews = (
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     );
   });
-  return () => off(dbRef);
 };
 
 /** Get all reviews across every movie (newest first) */
 export const subscribeToAllReviews = (
   callback: (reviews: Review[]) => void
 ): (() => void) => {
-  const dbRef = reviewsRef();
-  onValue(dbRef, (snap) => {
+  return onValue(reviewsRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     const all = Object.values(snap.val()) as Review[];
     callback(
       all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     );
   });
-  return () => off(dbRef);
 };
 
 /** Check if a specific booking already has a review (used for guest/walk-in reviews,

@@ -1,5 +1,5 @@
 import {
-  ref, set, get, update, remove, push, onValue, off,
+  ref, set, get, update, remove, push, onValue,
 } from 'firebase/database';
 import { db } from '../config/firebase';
 
@@ -173,32 +173,27 @@ export const getBookedSeats = async (scheduleId: string): Promise<string[]> => {
 export const subscribeToAllBookings = (
   callback: (bookings: Booking[]) => void
 ): (() => void) => {
-  const dbRef = bookingsRef();
-  onValue(dbRef, (snap) => {
+  return onValue(bookingsRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(Object.values(snap.val()) as Booking[]);
   });
-  return () => off(dbRef);
 };
 
 export const subscribeToRoomBookings = (
   roomId: string,
   callback: (bookings: Booking[]) => void
 ): (() => void) => {
-  const dbRef = bookingsRef();
-  onValue(dbRef, (snap) => {
+  return onValue(bookingsRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback((Object.values(snap.val()) as Booking[]).filter(b => b.roomId === roomId));
   });
-  return () => off(dbRef);
 };
 
 export const subscribeToUserBookings = (
   userId: string,
   callback: (bookings: Booking[]) => void
 ): (() => void) => {
-  const dbRef = bookingsRef();
-  onValue(dbRef, (snap) => {
+  return onValue(bookingsRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(
       (Object.values(snap.val()) as Booking[])
@@ -206,17 +201,14 @@ export const subscribeToUserBookings = (
         .sort((a, b) => new Date(b.bookedAt).getTime() - new Date(a.bookedAt).getTime())
     );
   });
-  return () => off(dbRef);
 };
 
 export const subscribeToScheduleBookings = (
   scheduleId: string,
   callback: (bookings: Booking[]) => void
 ): (() => void) => {
-  const dbRef = bookingsRef();
-  onValue(dbRef, (snap) => {
+  return onValue(bookingsRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback((Object.values(snap.val()) as Booking[]).filter(b => b.scheduleId === scheduleId));
   });
-  return () => off(dbRef);
 };

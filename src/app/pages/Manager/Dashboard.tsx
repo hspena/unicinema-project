@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Modal, StatCard, ReviewSummary } from '../../components/ui';
-import { useAuth }                    from '../../context/AuthContext';
-import { subscribeToRooms, subscribeToTemplates, templateSeatCount, Room, RoomTemplate, roomManagerIds } from '../../services/templateService';
+import { useManagedRoom }             from '../../hooks/useManagedRoom';
+import { subscribeToRooms, subscribeToTemplates, templateSeatCount, Room, RoomTemplate } from '../../services/templateService';
 import { subscribeToMovies, subscribeToGenres, Movie, Genre } from '../../services/movieService';
 import { subscribeToRoomSchedules, effectiveStatus, isBookable, todayString, formatDate } from '../../services/scheduleService';
 import { subscribeToRoomBookings, Booking } from '../../services/bookingService';
@@ -134,8 +134,6 @@ const RoomReviewsPanel = ({
 // ─── Main Manager Dashboard ───────────────────────────────────────────────────
 
 const CMDashboard = () => {
-  const { uid } = useAuth();
-
   const [rooms,     setRooms]     = useState<Room[]>([]);
   const [templates, setTemplates] = useState<RoomTemplate[]>([]);
   const [movies,    setMovies]    = useState<Movie[]>([]);
@@ -152,7 +150,7 @@ const CMDashboard = () => {
     return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
-  const myRoom     = rooms.find(r => uid && roomManagerIds(r).includes(uid)) ?? rooms[0] ?? null;
+  const myRoom     = useManagedRoom(rooms);
   const myTemplate = myRoom ? templates.find(t => t.id === myRoom.templateId) ?? null : null;
 
   useEffect(() => {

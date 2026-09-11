@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StatCard, Card, Badge, BarChart, RangeFilter } from '../../components/ui';
-import { useAuth } from '../../context/AuthContext';
+import { useManagedRoom } from '../../hooks/useManagedRoom';
 import { Building2, Ticket, DollarSign, CheckCircle2, Popcorn } from '../../utils/icons';
 import { Movie, Genre, subscribeToMovies, subscribeToGenres } from '../../services/movieService';
 import {
-  Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount, roomManagerIds,
+  Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount,
 } from '../../services/templateService';
 import { Schedule, subscribeToRoomSchedules } from '../../services/scheduleService';
 import { Booking, subscribeToRoomBookings } from '../../services/bookingService';
@@ -21,8 +21,6 @@ const EmptyChart = ({ text }: { text: string }) => (
 );
 
 const Analytics = () => {
-  const { uid } = useAuth();
-
   const [rooms,     setRooms]     = useState<Room[]>([]);
   const [templates, setTemplates] = useState<RoomTemplate[]>([]);
   const [movies,    setMovies]    = useState<Movie[]>([]);
@@ -39,7 +37,7 @@ const Analytics = () => {
     return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
-  const myRoom = rooms.find(r => uid && roomManagerIds(r).includes(uid)) ?? rooms[0] ?? null;
+  const myRoom = useManagedRoom(rooms);
 
   useEffect(() => {
     if (!myRoom) { setSchedules([]); setBookings([]); return; }

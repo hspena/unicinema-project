@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import SeatMap from '../../components/ui/SeatMap';
 import AutoScheduleModal from '../../components/AutoScheduleModal';
 import CancelDayModal from '../../components/CancelDayModal';
-import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount, updateRoom, roomManagerIds } from '../../services/templateService';
+import { Room, RoomTemplate, subscribeToRooms, subscribeToTemplates, templateSeatCount, updateRoom } from '../../services/templateService';
+import { useManagedRoom } from '../../hooks/useManagedRoom';
 import { Movie, subscribeToMovies } from '../../services/movieService';
 import { Snack, subscribeToSnacks, updateSnack, CATEGORY_ICONS } from '../../services/snackService';
 import {
@@ -276,7 +277,7 @@ const CinemaManagement = () => {
   const [showSeatMap,     setShowSeatMap]     = useState(false);
   const [showCancelDay,   setShowCancelDay]   = useState(false);
 
-  const myRoom     = rooms.find(r => uid && roomManagerIds(r).includes(uid)) ?? rooms[0] ?? null;
+  const myRoom     = useManagedRoom(rooms);
   const myTemplate = myRoom ? templates.find(t => t.id === myRoom.templateId) ?? null : null;
 
   useEffect(() => {

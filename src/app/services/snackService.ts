@@ -1,5 +1,5 @@
 import {
-  ref, set, get, update, remove, push, onValue, off,
+  ref, set, get, update, remove, push, onValue,
 } from 'firebase/database';
 import { db } from '../config/firebase';
 
@@ -55,12 +55,10 @@ export const restockSnack = async (id: string, addAmount: number): Promise<void>
 export const subscribeToSnacks = (
   callback: (snacks: Snack[]) => void
 ): (() => void) => {
-  const dbRef = snacksRef();
-  onValue(dbRef, (snap) => {
+  return onValue(snacksRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(Object.values(snap.val()) as Snack[]);
   });
-  return () => off(dbRef);
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────

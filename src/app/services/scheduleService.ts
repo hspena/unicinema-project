@@ -1,5 +1,5 @@
 import {
-  ref, set, get, update, remove, push, onValue, off,
+  ref, set, get, update, remove, push, onValue,
 } from 'firebase/database';
 import { db } from '../config/firebase';
 
@@ -120,24 +120,20 @@ export const subscribeToRoomSchedules = (
   roomId: string,
   callback: (schedules: Schedule[]) => void
 ): (() => void) => {
-  const dbRef = schedulesRef();
-  onValue(dbRef, (snap) => {
+  return onValue(schedulesRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     const all = Object.values(snap.val()) as Schedule[];
     callback(all.filter(s => s.roomId === roomId));
   });
-  return () => off(dbRef);
 };
 
 export const subscribeToAllSchedules = (
   callback: (schedules: Schedule[]) => void
 ): (() => void) => {
-  const dbRef = schedulesRef();
-  onValue(dbRef, (snap) => {
+  return onValue(schedulesRef(), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(Object.values(snap.val()) as Schedule[]);
   });
-  return () => off(dbRef);
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

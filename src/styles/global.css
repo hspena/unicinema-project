@@ -116,6 +116,8 @@ body {
 .sidebar-brand p { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
 
 .sidebar-role-switcher { margin: 12px 14px; }
+.sidebar-role-switcher .input-group { margin-bottom: 10px; }
+.sidebar-role-switcher .input-group:last-child { margin-bottom: 0; }
 
 .sidebar-nav { padding: 8px 0; flex: 1; }
 .sidebar-section-label {
