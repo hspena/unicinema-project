@@ -5,6 +5,8 @@
 //
 // Env: GEMINI_API_KEY (server-only — do NOT prefix with REACT_APP_).
 
+import { createHash } from 'node:crypto';
+
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const ENDPOINT =
   `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -61,6 +63,12 @@ export default async (req: Request): Promise<Response> => {
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body,
   });
+
+  // TEMP diagnostic: identify which key the deploy holds without logging it.
+  if (!upstream.ok) {
+    const fingerprint = createHash('sha256').update(apiKey).digest('hex').slice(0, 8);
+    console.log(`Gemini ${upstream.status}; key length=${apiKey.length} sha256=${fingerprint}`);
+  }
 
   // Pass Gemini's status and body straight through so the client's existing
   // retry (429/503) and error-parsing logic keeps working unchanged.
