@@ -491,11 +491,12 @@ Notable design decisions:
   responses, the request is retried up to three times with an increasing delay.
 - **Error handling** — a custom `GeminiError` carries user-facing messages for
   recoverable failures.
-- **API key** — read from `REACT_APP_GEMINI_API_KEY`. Because Create React App
-  inlines environment variables, this key is bundled into the client. A
-  production deployment would proxy these calls through a backend so the key is
-  never exposed to the browser; restricting the key by domain is a minimum
-  mitigation.
+- **API key** — never reaches the browser. The service posts to the Netlify
+  Function `netlify/functions/gemini.mts`, which reads the server-only
+  `GEMINI_API_KEY`, fixes the model and endpoint, and forwards the request.
+  Google requires Gemini keys to be bound to a service account, which rules out
+  website (referrer) restrictions, so the proxy is the primary protection and a
+  lowered daily quota in Google Cloud caps any abuse of the function itself.
 - **Catalogue grounding** — the system prompt embeds the live movie catalogue,
   constraining recommendations to titles that actually exist in the database.
 
@@ -645,11 +646,12 @@ database surface of the project:
 | `onValue(ref, cb)` / `off(ref)` | Attach / detach a real-time listener. |
 
 ### 12.3 Google Gemini API (CineBot)
-Invoked as a REST call (no SDK) in `geminiService.ts`:
+Invoked as a REST call (no SDK). `geminiService.ts` posts to the same-origin
+proxy `/.netlify/functions/gemini`, which forwards to Google:
 
-- **Endpoint:** `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=…`
-- **Model:** `gemini-2.5-flash`
-- **Authentication:** API key from `REACT_APP_GEMINI_API_KEY`.
+- **Endpoint:** `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
+- **Model:** `gemini-2.5-flash` (fixed in the function)
+- **Authentication:** `x-goog-api-key` header, added server-side from `GEMINI_API_KEY`.
 - **Request composition:** a `system_instruction` (assistant persona plus the
   live movie catalogue), the chat `contents` (history), and a `generationConfig`
   that enforces JSON output via `responseMimeType: 'application/json'` and a
@@ -994,12 +996,13 @@ npm install
 
 # 2. Create a .env file from the template and populate the keys
 #    cp .env.example .env   (then edit it)
-#    Requires REACT_APP_GEMINI_API_KEY and the REACT_APP_FIREBASE_* values.
+#    Requires GEMINI_API_KEY and the REACT_APP_FIREBASE_* values.
 #    The REACT_APP_EMAILJS_* values are optional — without them cancellation
 #    notices are delivered in-app only.
 
-# 3. Start the development server (http://localhost:3000)
-npm start
+# 3. Start the development server (http://localhost:8888)
+#    netlify dev serves the CineBot function too (npm install -g netlify-cli).
+netlify dev
 
 # 4. Build for production
 npm run build

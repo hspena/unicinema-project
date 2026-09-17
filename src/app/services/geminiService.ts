@@ -1,17 +1,12 @@
 // ─── Gemini AI Chat Service ───────────────────────────────────────────────────
 // Wraps calls to Google's Gemini API (generateContent) for the CineBot chatbot.
 //
-// NOTE: The API key is read from REACT_APP_GEMINI_API_KEY (see .env). Like any
-// CRA env var, it gets bundled into the client-side JS — fine for a student
-// project, but for production you'd want to proxy this call through a backend
-// so the key never reaches the browser. Restrict the key to your domain in
-// Google AI Studio / Cloud Console as a minimum safeguard.
+// NOTE: The browser never sees the API key. Requests go to the Netlify Function
+// in netlify/functions/gemini.mts, which adds GEMINI_API_KEY server-side and
+// forwards the call to Gemini. Locally, run `netlify dev` so the function is
+// served alongside the app — plain `npm start` has no function to call.
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
-const API_KEY      = process.env.REACT_APP_GEMINI_API_KEY;
-
-const ENDPOINT =
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const ENDPOINT = '/.netlify/functions/gemini';
 
 export interface ChatTurn {
   role: 'user' | 'model';
@@ -54,12 +49,6 @@ export const askCineBot = async (
   systemPrompt: string,
   history:      ChatTurn[],
 ): Promise<CineBotReply> => {
-  if (!API_KEY) {
-    throw new GeminiError(
-      'Gemini API key is missing. Add REACT_APP_GEMINI_API_KEY to your .env file and restart the dev server.'
-    );
-  }
-
   const body = {
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: history.map(turn => ({
@@ -77,7 +66,7 @@ export const askCineBot = async (
   let res: Response | undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    res = await fetch(`${ENDPOINT}?key=${API_KEY}`, {
+    res = await fetch(ENDPOINT, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(body),
@@ -100,6 +89,9 @@ export const askCineBot = async (
     const reason  = parseErrorMessage(res.status, errBody);
     if (res.status === 503 || res.status === 429) {
       throw new GeminiError("CineBot's brain is a little overloaded right now — please try again in a few seconds.");
+    }
+    if (res.status === 404) {
+      throw new GeminiError('CineBot service is unavailable. When running locally, start the app with `netlify dev`.');
     }
     throw new GeminiError(`Gemini request failed: ${reason}`);
   }

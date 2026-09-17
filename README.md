@@ -67,8 +67,10 @@ npm install
 # 3. Create your .env from the template and populate the keys
 cp .env.example .env
 
-# 4. Start the development server  →  http://localhost:3000
-npm start
+# 4. Start the development server  →  http://localhost:8888
+#    (netlify dev runs the app plus the CineBot function; install it once with
+#    `npm install -g netlify-cli`. Plain `npm start` works but CineBot won't.)
+netlify dev
 ```
 
 ### Environment variables (`.env`)
@@ -78,8 +80,8 @@ Gemini key and the Firebase configuration are read from these variables; see
 [`src/app/config/firebase.ts`](src/app/config/firebase.ts).
 
 ```env
-# Google Gemini (CineBot)
-REACT_APP_GEMINI_API_KEY=your_gemini_key_here
+# Google Gemini (CineBot) — server-only, used by netlify/functions/gemini.mts
+GEMINI_API_KEY=your_gemini_key_here
 
 # Firebase
 REACT_APP_FIREBASE_API_KEY=your_api_key_here
@@ -93,10 +95,9 @@ REACT_APP_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```
 
 > **Security note:** `.env` is gitignored and must never contain committed
-> credentials. Because Create React App inlines environment variables, the
-> `REACT_APP_GEMINI_API_KEY` is bundled into the client JavaScript; a production
-> deployment should proxy Gemini calls through a backend so the key is never
-> exposed to the browser.
+> credentials. Create React App inlines every `REACT_APP_*` variable into the
+> client JavaScript, so those values are public. The Gemini key is kept out of
+> the bundle: CineBot calls a Netlify Function that adds the key server-side.
 
 ### Initial setup: creating the first admin
 

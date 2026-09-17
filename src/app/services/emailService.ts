@@ -12,7 +12,7 @@
 // The EmailJS template should reference these variables:
 //   {{to_email}} {{to_name}} {{subject}} {{heading}} {{message}} {{details}}
 //
-// NOTE: like REACT_APP_GEMINI_API_KEY, these values are bundled into the
+// NOTE: like every REACT_APP_* variable, these values are bundled into the
 // client-side JS. That is expected for an EmailJS *public* key — lock the
 // account down with the domain allow-list in the EmailJS dashboard. For
 // production you would proxy this through a backend instead.

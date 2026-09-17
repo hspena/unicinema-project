@@ -1,6 +1,13 @@
 [build]
   command = "npm run build"
   publish = "build"
+  functions = "netlify/functions"
+
+# `netlify dev`: run the CRA dev server and serve functions alongside it on :8888.
+[dev]
+  command = "npm start"
+  targetPort = 3000
+  port = 8888
 
 [build.environment]
   # CRA turns lint warnings into errors when CI=true, which Netlify sets by default.
