@@ -39,7 +39,8 @@ export default async (req: Request): Promise<Response> => {
     return json(403, 'Origin not allowed.');
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Trim stray whitespace / wrapping quotes picked up when pasting into the Netlify UI
+  const apiKey = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, '');
   if (!apiKey) {
     return json(500, 'CineBot is not configured on the server (GEMINI_API_KEY is missing).');
   }
