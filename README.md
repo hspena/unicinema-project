@@ -93,12 +93,6 @@ REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 REACT_APP_FIREBASE_APP_ID=your_app_id
 REACT_APP_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```
-
-> **Security note:** `.env` is gitignored and must never contain committed
-> credentials. Create React App inlines every `REACT_APP_*` variable into the
-> client JavaScript, so those values are public. The Gemini key is kept out of
-> the bundle: CineBot calls a Netlify Function that adds the key server-side.
-
 ### Initial setup: creating the first admin
 
 A new database contains no users. Use the one-time bootstrap helper:
